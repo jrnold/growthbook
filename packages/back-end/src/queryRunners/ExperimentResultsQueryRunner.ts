@@ -48,6 +48,7 @@ import {
   analyzeExperimentResults,
   analyzeExperimentTraffic,
 } from "back-end/src/services/stats";
+import { extractSrmSettings } from "back-end/src/util/ssrm-integration";
 import { SourceIntegrationInterface } from "back-end/src/types/Integration";
 import { expandDenominatorMetrics } from "back-end/src/util/sql";
 import { FactTableMap } from "back-end/src/models/FactTableModel";
@@ -417,6 +418,7 @@ export class ExperimentResultsQueryRunner extends QueryRunner<
         rows: rows,
         error: healthQuery.error,
         variations: this.model.settings.variations,
+        srmSettings: extractSrmSettings(this.model.analyses[0]?.settings),
       });
 
       result.health = {

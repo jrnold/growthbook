@@ -82,7 +82,8 @@ from gbstats.models.statistics import (
     TestStatistic,
     BanditStatistic,
 )
-from gbstats.utils import check_srm
+from gbstats.utils import check_srm  # noqa: F401
+from gbstats.ssrm import compute_srm_p_value
 
 from gbstats.models.tests import EffectMomentsResult
 
@@ -600,12 +601,7 @@ def analyze_metric_df(
             else:
                 raise ValueError(f"Unexpected test result type: {type(res)}")
 
-        # TODO check front-end SRM matches this SRM
-        srm_p = check_srm(
-            [d["baseline_users"].sum()]
-            + [d[f"v{i}_users"].sum() for i in range(1, num_variations)],
-            analysis.weights,
-        )
+        srm_p = compute_srm_p_value(analysis, d, num_variations)
 
         # insert baseline data in the appropriate position, uses test from last variation
         # but should be the same for the baseline (stat_a is the control/baseline statistic)

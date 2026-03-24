@@ -222,6 +222,9 @@ export const experimentAnalysisSettings = z
     postStratificationEnabled: z.boolean().nullable().optional(),
     sequentialTestingEnabled: z.boolean().optional(),
     sequentialTestingTuningParameter: z.number().optional(),
+    srmMethod: z.enum(["chi_squared", "sequential"]).optional(),
+    srmSlabWeight: z.number().min(0).max(1).optional(),
+    srmDirichletConcentration: z.number().positive().optional(),
     statsEngine: z.enum(statsEngines).optional(),
     customMetricSlices: z.array(customMetricSlice).optional(),
   })

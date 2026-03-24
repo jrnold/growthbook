@@ -53,6 +53,14 @@ import {
 } from "shared/types/experiment-snapshot";
 import { BanditResult } from "shared/types/experiment";
 import { checkSrm, chi2pvalue } from "back-end/src/util/stats";
+import {
+  computeTrafficSrm,
+  computeDimensionSrm,
+  computePerDaySequentialSrm,
+  getSrmDailyUsersFromQueryData,
+  getSrmSettingsForStatsEngine,
+  type SrmSettings,
+} from "back-end/src/util/ssrm-integration";
 import { promiseAllChunks } from "back-end/src/util/promise";
 import { logger } from "back-end/src/util/logger";
 import { QueryMap } from "back-end/src/queryRunners/QueryRunner";
@@ -102,6 +110,7 @@ export function getAnalysisSettingsForStatsEngine(
     num_goal_metrics: settings.numGoalMetrics,
     one_sided_intervals: !!settings.oneSidedIntervals,
     post_stratification_enabled: !!settings.postStratificationEnabled,
+    ...getSrmSettingsForStatsEngine(settings),
   };
 
   return analysisData;
@@ -180,6 +189,7 @@ function createStatsEngineData(
     analyses,
     queryResults,
     banditSettings,
+    srmDailyUsers,
   } = params;
 
   const phaseLengthDays = Number(phaseLengthHours / 24);
@@ -187,14 +197,15 @@ function createStatsEngineData(
   return {
     metrics: metrics,
     query_results: queryResults,
-    analyses: analyses.map((a) =>
-      getAnalysisSettingsForStatsEngine(
+    analyses: analyses.map((a) => ({
+      ...getAnalysisSettingsForStatsEngine(
         a,
         variations,
         coverage,
         phaseLengthDays,
       ),
-    ),
+      ...(srmDailyUsers?.length ? { srm_daily_users: srmDailyUsers } : {}),
+    })),
     bandit_settings: banditSettings
       ? getBanditSettingsForStatsEngine(banditSettings, analyses[0], variations)
       : undefined,
@@ -650,6 +661,11 @@ export async function analyzeExperimentResults({
   const { queryResults, metricSettings } = mdat;
   const { unknownVariations } = mdat;
 
+  const srmDailyUsers = getSrmDailyUsersFromQueryData(
+    queryData,
+    snapshotSettings.variations,
+  );
+
   const params: ExperimentMetricAnalysisParams = {
     id: snapshotSettings.experimentId,
     coverage: snapshotSettings.coverage ?? 1,
@@ -666,6 +682,7 @@ export async function analyzeExperimentResults({
     queryResults: queryResults,
     metrics: metricSettings,
     banditSettings: snapshotSettings.banditSettings,
+    srmDailyUsers: srmDailyUsers.length ? srmDailyUsers : undefined,
   };
   const { results: analysis, banditResult } = await runSnapshotAnalysis(params);
 
@@ -683,10 +700,12 @@ export function analyzeExperimentTraffic({
   rows,
   error,
   variations,
+  srmSettings,
 }: {
   rows: ExperimentAggregateUnitsQueryResponseRows;
   error?: string;
   variations: SnapshotSettingsVariation[];
+  srmSettings?: SrmSettings;
 }): ExperimentSnapshotTraffic {
   const overallResult: ExperimentSnapshotTrafficDimension = {
     name: "All",
@@ -767,24 +786,59 @@ export function analyzeExperimentTraffic({
     }
   });
 
-  // compute SRM for non-bandits
+  // Compute SRM for non-bandits using daily time-series when available
   if (!banditSrmSet) {
-    trafficResults.overall.srm = checkSrm(
+    // Sort daily entries chronologically — order matters for sequential Bayes factor
+    const dailyEntries = Array.from(
+      dimTrafficResults.get(EXPOSURE_DATE_DIMENSION_NAME)?.values() ?? [],
+    ).sort((a, b) => a.name.localeCompare(b.name));
+    trafficResults.overall.srm = computeTrafficSrm(
       trafficResults.overall.variationUnits,
+      dailyEntries,
       variationWeights,
+      srmSettings,
     );
   }
 
   for (const [dimName, dimTraffic] of dimTrafficResults) {
-    for (const dimValueTraffic of dimTraffic.values()) {
-      dimValueTraffic.srm = checkSrm(
-        dimValueTraffic.variationUnits,
-        variationWeights,
+    // For the date dimension, compute cumulative sequential p-values so
+    // each day's SRM reflects all data up to that day
+    if (
+      dimName === EXPOSURE_DATE_DIMENSION_NAME &&
+      srmSettings?.srmMethod === "sequential"
+    ) {
+      // Sort date entries chronologically
+      const sortedEntries = Array.from(dimTraffic.entries()).sort(([a], [b]) =>
+        a.localeCompare(b),
       );
-      if (dimName in trafficResults.dimension) {
-        trafficResults.dimension[dimName].push(dimValueTraffic);
-      } else {
-        trafficResults.dimension[dimName] = [dimValueTraffic];
+      const dailyMatrix = sortedEntries.map(([, d]) => d.variationUnits);
+      const perDayPValues = computePerDaySequentialSrm(
+        dailyMatrix,
+        variationWeights,
+        srmSettings,
+      );
+      sortedEntries.forEach(([, dimValueTraffic], i) => {
+        dimValueTraffic.srm = perDayPValues[i];
+        if (dimName in trafficResults.dimension) {
+          trafficResults.dimension[dimName].push(dimValueTraffic);
+        } else {
+          trafficResults.dimension[dimName] = [dimValueTraffic];
+        }
+      });
+    } else {
+      // For non-date dimensions, use the sequential calculation on
+      // aggregated counts rather than per-day breakdown
+      for (const dimValueTraffic of dimTraffic.values()) {
+        dimValueTraffic.srm = computeDimensionSrm(
+          dimValueTraffic.variationUnits,
+          variationWeights,
+          srmSettings,
+        );
+        if (dimName in trafficResults.dimension) {
+          trafficResults.dimension[dimName].push(dimValueTraffic);
+        } else {
+          trafficResults.dimension[dimName] = [dimValueTraffic];
+        }
       }
     }
   }

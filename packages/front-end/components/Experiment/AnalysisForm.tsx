@@ -48,6 +48,7 @@ import {
   fixMetricOverridesBeforeSaving,
   getDefaultMetricOverridesFormValue,
 } from "./EditMetricsForm";
+import SrmMethodSelector from "./SrmMethodSelector";
 import MetricSelector from "./MetricSelector";
 import BanditDecisionMetricSettings from "./BanditDecisionMetricSettings";
 import ExperimentMetricsSelector from "./ExperimentMetricsSelector";
@@ -160,6 +161,14 @@ const AnalysisForm: FC<{
           ? experiment.sequentialTestingTuningParameter
           : (orgSettings.sequentialTestingTuningParameter ??
             DEFAULT_SEQUENTIAL_TESTING_TUNING_PARAMETER),
+      srmMethod: experiment.srmMethod ?? orgSettings.srmMethod ?? "chi_squared",
+      srmSlabWeight:
+        experiment.srmSlabWeight ?? orgSettings.srmSlabWeight ?? 0.0,
+      srmDirichletConcentration:
+        experiment.srmDirichletConcentration ??
+        orgSettings.srmDirichletConcentration ??
+        10000,
+      _srmUseOrgDefault: experiment.srmMethod === undefined,
       goalMetrics: experiment.goalMetrics,
       guardrailMetrics: experiment.guardrailMetrics || [],
       secondaryMetrics: experiment.secondaryMetrics || [],
@@ -332,6 +341,13 @@ const AnalysisForm: FC<{
             orgSettings.sequentialTestingTuningParameter ??
             DEFAULT_SEQUENTIAL_TESTING_TUNING_PARAMETER;
         }
+        // Clear experiment-level SRM override when using org default
+        if (value._srmUseOrgDefault) {
+          body.srmMethod = undefined;
+          body.srmSlabWeight = undefined;
+          body.srmDirichletConcentration = undefined;
+        }
+        delete (body as Record<string, unknown>)._srmUseOrgDefault;
 
         // bandits
         if (
@@ -837,6 +853,11 @@ const AnalysisForm: FC<{
               </div>
             </div>
           )}
+        <FormProvider {...form}>
+          <SrmMethodSelector
+            experimentSrmMethodDefined={experiment.srmMethod !== undefined}
+          />
+        </FormProvider>
         {editMetrics && (
           <>
             {isBandit && (

@@ -177,6 +177,10 @@ export interface AnalysisSettingsForStatsEngine {
   num_goal_metrics: number;
   one_sided_intervals?: boolean;
   post_stratification_enabled?: boolean;
+  srm_method?: "chi_squared" | "sequential";
+  srm_slab_weight?: number;
+  srm_dirichlet_concentration?: number;
+  srm_daily_users?: number[][];
 }
 
 export interface BanditSettingsForStatsEngine {

@@ -333,6 +333,16 @@ export function getDefaultExperimentAnalysisSettings({
     differenceType: "relative",
     pValueThreshold:
       organization.settings?.pValueThreshold ?? DEFAULT_P_VALUE_THRESHOLD,
+    srmMethod:
+      experiment?.srmMethod ??
+      organization.settings?.srmMethod ??
+      "chi_squared",
+    srmSlabWeight:
+      experiment?.srmSlabWeight ?? organization.settings?.srmSlabWeight ?? 0.0,
+    srmDirichletConcentration:
+      experiment?.srmDirichletConcentration ??
+      organization.settings?.srmDirichletConcentration ??
+      10000.0,
     numGoalMetrics: experiment.goalMetrics.length,
   };
 }
