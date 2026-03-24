@@ -47,8 +47,8 @@ import { parseDimension } from "back-end/src/services/experiments";
 import {
   analyzeExperimentResults,
   analyzeExperimentTraffic,
+  extractSrmSettings,
 } from "back-end/src/services/stats";
-import { extractSrmSettings } from "back-end/src/util/ssrm-integration";
 import { SourceIntegrationInterface } from "back-end/src/types/Integration";
 import { expandDenominatorMetrics } from "back-end/src/util/sql";
 import { FactTableMap } from "back-end/src/models/FactTableModel";

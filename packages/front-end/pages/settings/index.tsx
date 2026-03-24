@@ -15,6 +15,9 @@ import {
   DEFAULT_DECISION_FRAMEWORK_ENABLED,
   DEFAULT_REQUIRE_PROJECT_FOR_FEATURES,
   DEFAULT_POST_STRATIFICATION_ENABLED,
+  DEFAULT_SRM_DIRICHLET_CONCENTRATION,
+  DEFAULT_SRM_METHOD,
+  DEFAULT_SRM_SLAB_WEIGHT,
 } from "shared/constants";
 import { DEFAULT_MAX_METRIC_SLICE_LEVELS } from "shared/settings";
 import { OrganizationSettings } from "shared/types/organization";
@@ -110,9 +113,11 @@ const GeneralSettingsPage = (): React.ReactElement => {
       },
       runHealthTrafficQuery: false,
       srmThreshold: DEFAULT_SRM_THRESHOLD,
-      srmMethod: settings.srmMethod ?? "chi_squared",
-      srmSlabWeight: settings.srmSlabWeight ?? 0.0,
-      srmDirichletConcentration: settings.srmDirichletConcentration ?? 10000,
+      srmMethod: settings.srmMethod ?? DEFAULT_SRM_METHOD,
+      srmSlabWeight: settings.srmSlabWeight ?? DEFAULT_SRM_SLAB_WEIGHT,
+      srmDirichletConcentration:
+        settings.srmDirichletConcentration ??
+        DEFAULT_SRM_DIRICHLET_CONCENTRATION,
       multipleExposureMinPercent: 0.01,
       confidenceLevel: 0.95,
       pValueThreshold: DEFAULT_P_VALUE_THRESHOLD,

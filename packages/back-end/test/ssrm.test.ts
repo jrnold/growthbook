@@ -1,13 +1,12 @@
 import { sequentialPValues } from "back-end/src/util/ssrm";
-import { checkSrm } from "back-end/src/util/stats";
 import {
-  checkSrmFromTimeSeries,
+  checkSrm,
   computeTrafficSrm,
   computeDimensionSrm,
   computePerDaySequentialSrm,
   extractSrmDailyUsers,
   type SrmSettings,
-} from "back-end/src/util/ssrm-integration";
+} from "back-end/src/services/stats";
 
 // ---------------------------------------------------------------------------
 // Helper: check relative closeness for very small p-values
@@ -213,7 +212,7 @@ describe("sequentialPValues", () => {
 });
 
 // ---------------------------------------------------------------------------
-// extractSrmDailyUsers (ssrm-integration.ts)
+// extractSrmDailyUsers (stats.ts)
 // ---------------------------------------------------------------------------
 
 describe("extractSrmDailyUsers", () => {
@@ -349,78 +348,7 @@ describe("extractSrmDailyUsers", () => {
 });
 
 // ---------------------------------------------------------------------------
-// checkSrmFromTimeSeries (ssrm-integration.ts)
-// ---------------------------------------------------------------------------
-
-describe("checkSrmFromTimeSeries", () => {
-  it("returns 1 when there is no daily data", () => {
-    // Empty array → totalUsers = [0, 0] → checkSrm returns 1 (no users)
-    expect(checkSrmFromTimeSeries([], [0.5, 0.5])).toBe(1);
-  });
-
-  it("returns 1 for perfectly balanced aggregate totals", () => {
-    const dailyData = [
-      { variationUnits: [500, 500] },
-      { variationUnits: [500, 500] },
-    ];
-    // Totals [1000, 1000], weights [0.5, 0.5] → no SRM
-    expect(checkSrmFromTimeSeries(dailyData, [0.5, 0.5])).toBeCloseTo(1, 9);
-  });
-
-  it("returns a low p-value when aggregated totals are imbalanced", () => {
-    const dailyData = [
-      { variationUnits: [600, 400] },
-      { variationUnits: [600, 400] },
-    ];
-    // Totals [1200, 800] → same as checkSrm([1200, 800], [0.5, 0.5])
-    const p = checkSrmFromTimeSeries(dailyData, [0.5, 0.5]);
-    expect(p).toBeCloseTo(checkSrm([1200, 800], [0.5, 0.5]), 9);
-    expect(p).toBeLessThan(0.001);
-  });
-
-  it("sums daily counts across all days before computing SRM", () => {
-    // Three days: [100,100], [200,200], [300,300] → totals [600, 600] → no SRM
-    const dailyData = [
-      { variationUnits: [100, 100] },
-      { variationUnits: [200, 200] },
-      { variationUnits: [300, 300] },
-    ];
-    expect(checkSrmFromTimeSeries(dailyData, [0.5, 0.5])).toBeCloseTo(1, 9);
-  });
-
-  it("handles 3-variation data with matching weights", () => {
-    const dailyData = [
-      { variationUnits: [400, 200, 400] },
-      { variationUnits: [400, 200, 400] },
-    ];
-    // Totals [800, 400, 800], weights [0.4, 0.2, 0.4] → matches expected
-    const p = checkSrmFromTimeSeries(dailyData, [0.4, 0.2, 0.4]);
-    expect(p).toBeCloseTo(1, 5);
-  });
-
-  it("uses sequential test when settings specify sequential", () => {
-    const settings: SrmSettings = {
-      srmMethod: "sequential",
-      srmSlabWeight: 0.0,
-      srmDirichletConcentration: 10000,
-    };
-    // Use moderate imbalance so the two methods give distinguishable p-values
-    const dailyData = [
-      { variationUnits: [600, 400] },
-      { variationUnits: [550, 450] },
-    ];
-    const pSeq = checkSrmFromTimeSeries(dailyData, [0.5, 0.5], settings);
-    const pChi = checkSrmFromTimeSeries(dailyData, [0.5, 0.5]);
-    // Both should produce valid p-values
-    expect(pSeq).toBeGreaterThanOrEqual(0);
-    expect(pSeq).toBeLessThanOrEqual(1);
-    // With moderate imbalance, the methods produce distinguishable values
-    expect(Math.abs(pSeq - pChi)).toBeGreaterThan(1e-10);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// computeTrafficSrm (ssrm-integration.ts)
+// computeTrafficSrm (stats.ts)
 // ---------------------------------------------------------------------------
 
 describe("computeTrafficSrm", () => {
@@ -462,7 +390,7 @@ describe("computeTrafficSrm", () => {
 });
 
 // ---------------------------------------------------------------------------
-// computeDimensionSrm (ssrm-integration.ts)
+// computeDimensionSrm (stats.ts)
 // ---------------------------------------------------------------------------
 
 describe("computeDimensionSrm", () => {
@@ -494,7 +422,7 @@ describe("computeDimensionSrm", () => {
 });
 
 // ---------------------------------------------------------------------------
-// computePerDaySequentialSrm (ssrm-integration.ts)
+// computePerDaySequentialSrm (stats.ts)
 // ---------------------------------------------------------------------------
 
 describe("computePerDaySequentialSrm", () => {

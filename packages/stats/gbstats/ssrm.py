@@ -222,178 +222,27 @@ def sequential_p_values(
     return p_values
 
 
-# ---------------------------------------------------------------------------
-# Convenience wrappers (preserving the original module's public API)
-# ---------------------------------------------------------------------------
-
-
-def sequential_posteriors(
-    data: np.ndarray,
-    null_probabilities: np.ndarray,
-    dirichlet_probability: Optional[np.ndarray] = None,
-    dirichlet_concentration: float = 10000,
-    slab_weight: float = 0.0,
-    slab_concentration: float = 1.0,
-) -> List[dict]:
-    """Accumulate posterior state after each time step.
-
-    Returns a list of dicts (one per row) containing accumulated log marginal
-    likelihoods and posterior Dirichlet parameters for both models.
-    """
-    data = np.asarray(data)
-    if not _validate_integer_data(data):
-        raise TypeError("Data is supposed to be an array of integer arrays")
-
-    null_probabilities = np.asarray(null_probabilities)
-    state = _build_initial_state(
-        null_probabilities,
-        dirichlet_probability,
-        dirichlet_concentration,
-        slab_weight,
-        slab_concentration,
-    )
-
-    results: List[dict] = []
-    for row in data:
-        state.update(row)
-        d: dict = {
-            "log_marginal_likelihood_M1": state.log_ml_m1,
-            "log_marginal_likelihood_M0": state.log_ml_m0,
-            "posterior_M1": state.spike_alpha.copy(),
-            "posterior_M0": state.null_probs.copy(),
-        }
-        if state.slab_alpha is not None:
-            d["posterior_M1_spike"] = state.spike_alpha.copy()
-            d["posterior_M1_slab"] = state.slab_alpha.copy()
-            d["use_mixture"] = True
-            d["slab_weight"] = state.slab_weight
-        results.append(d)
-
-    return results
-
-
-def sequential_bayes_factors(
-    data: np.ndarray,
-    null_probabilities: np.ndarray,
-    dirichlet_probability: Optional[np.ndarray] = None,
-    dirichlet_concentration: float = 10000,
-    slab_weight: float = 0.0,
-    slab_concentration: float = 1.0,
-) -> np.ndarray:
-    """Compute the Bayes factor after each time step."""
-    posteriors = sequential_posteriors(
-        data,
-        null_probabilities,
-        dirichlet_probability,
-        dirichlet_concentration,
-        slab_weight,
-        slab_concentration,
-    )
-    return np.array(
-        [
-            np.exp(p["log_marginal_likelihood_M1"] - p["log_marginal_likelihood_M0"])
-            for p in posteriors
-        ]
-    )
-
-
-def sequential_posterior_probabilities(
-    data: np.ndarray,
-    null_probabilities: np.ndarray,
-    dirichlet_probability: Optional[np.ndarray] = None,
-    dirichlet_concentration: float = 10000,
-    prior_odds: float = 1,
-    slab_weight: float = 0.0,
-    slab_concentration: float = 1.0,
-) -> np.ndarray:
-    """Compute posterior probability of SRM after each time step."""
-    bfs = sequential_bayes_factors(
-        data,
-        null_probabilities,
-        dirichlet_probability,
-        dirichlet_concentration,
-        slab_weight,
-        slab_concentration,
-    )
-    posterior_odds = bfs * prior_odds
-
-    def _odds_to_prob(odds: float) -> float:
-        if odds == np.inf:
-            return 1.0
-        if odds == -np.inf:
-            return 0.0
-        return odds / (1.0 + odds)
-
-    return np.array([_odds_to_prob(o) for o in posterior_odds])
-
-
-def srm_test(
-    data: np.ndarray,
-    null_probabilities: np.ndarray,
-    dirichlet_probability: Optional[np.ndarray] = None,
-    dirichlet_concentration: float = 10000,
-    slab_weight: float = 0.0,
-    slab_concentration: float = 1.0,
-) -> float:
-    """Run the full sequential SRM test and return the final posterior probability.
-
-    Parameters
-    ----------
-    data:
-        2-D integer array, shape (T, K).
-    null_probabilities:
-        Expected traffic allocation fractions summing to 1.
-    dirichlet_probability:
-        Mean of the Dirichlet prior. Defaults to null_probabilities.
-    dirichlet_concentration:
-        Spike prior concentration. Default 10000.
-    slab_weight:
-        Slab mixture weight in [0, 1]. Default 0.0.
-    slab_concentration:
-        Slab Dirichlet concentration. Default 1.0.
-
-    Returns
-    -------
-    Final posterior probability of a sample ratio mismatch (between 0 and 1).
-    """
-    probs = sequential_posterior_probabilities(
-        data,
-        null_probabilities,
-        dirichlet_probability,
-        dirichlet_concentration,
-        slab_weight=slab_weight,
-        slab_concentration=slab_concentration,
-    )
-    return float(probs[-1])
-
-
-def log_posterior_predictive(n: np.ndarray, alpha: np.ndarray) -> float:
-    """Public alias for the Dirichlet-Multinomial log marginal likelihood."""
-    return _log_dirichlet_multinomial(n, alpha)
-
-
 def compute_srm_p_value(
     analysis: "AnalysisSettingsForStatsEngine",
-    d,
+    daily_users: List[List[int]],
     num_variations: int,
 ) -> float:
     """Compute the SRM p-value for an experiment analysis.
 
-    Builds daily_users from analysis.srm_daily_users or falls back to
-    aggregated totals from d. Dispatches to sequential_p_values() when
-    analysis.srm_method == "sequential", otherwise delegates to upstream
-    check_srm() (chi-squared).
+    Dispatches to sequential_p_values() when analysis.srm_method == "sequential",
+    otherwise delegates to check_srm() (chi-squared).
+
+    Parameters
+    ----------
+    analysis:
+        Analysis settings containing weights, srm_method, and prior params.
+    daily_users:
+        2-D list of daily user counts per variation. Each inner list has one
+        entry per variation for that day.
+    num_variations:
+        Number of experiment variations (used for fallback aggregation).
     """
     from gbstats.utils import check_srm
-
-    if analysis.srm_daily_users:
-        daily_users = analysis.srm_daily_users
-    else:
-        # Fallback: single-row matrix built from metric totals
-        daily_users = [
-            [d["baseline_users"].sum()]
-            + [d[f"v{i}_users"].sum() for i in range(1, num_variations)]
-        ]
 
     if analysis.srm_method == "sequential":
         total_weight = sum(analysis.weights)
@@ -413,19 +262,3 @@ def compute_srm_p_value(
     # Chi-squared: aggregate daily rows to totals
     users = [sum(row[i] for row in daily_users) for i in range(len(analysis.weights))]
     return check_srm(users, analysis.weights)
-
-
-def get_bayes_factor_threshold(
-    y: np.ndarray, dirichlet_alpha: np.ndarray, alpha: float
-) -> float:
-    """Compute the threshold for confidence intervals over individual parameters.
-
-    Returns the constant c in the constraint c <= sum y_i log p_i used in
-    convex optimization for parameter confidence intervals.
-    """
-    return float(
-        _log_dirichlet_multinomial(y, np.asarray(dirichlet_alpha))
-        + np.log(alpha)
-        - gammaln(y.sum() + 1)
-        + gammaln(y + 1).sum()
-    )

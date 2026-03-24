@@ -1,27 +1,20 @@
-// Self-contained SRM method selector for AnalysisForm.
-// Extracted to reduce rebase friction in the upstream AnalysisForm component.
-
 import React, { FC, useCallback, useState } from "react";
 import { useFormContext } from "react-hook-form";
+import { Flex, Box } from "@radix-ui/themes";
+import {
+  DEFAULT_SRM_DIRICHLET_CONCENTRATION,
+  DEFAULT_SRM_METHOD,
+  DEFAULT_SRM_SLAB_WEIGHT,
+} from "shared/constants";
 import useOrgSettings from "@/hooks/useOrgSettings";
+import Checkbox from "@/ui/Checkbox";
 import SelectField from "@/components/Forms/SelectField";
 import Field from "@/components/Forms/Field";
 
-/**
- * SrmMethodSelector manages the SRM method selection, tuning parameters,
- * and the "Reset to Organization Default" checkbox. It reads/writes
- * `srmMethod`, `srmSlabWeight`, `srmDirichletConcentration` via
- * useFormContext() (same pattern as StatsEngineSettings).
- *
- * On mount, if the experiment had no srmMethod override, usingOrgSrmMethod
- * starts as true and the fields are disabled.
- *
- * The parent form reads `_srmUseOrgDefault` at submit time to decide
- * whether to clear the experiment-level SRM settings.
- */
 const SrmMethodSelector: FC<{
   experimentSrmMethodDefined: boolean;
-}> = ({ experimentSrmMethodDefined }) => {
+  onUseOrgDefaultChange: (useDefault: boolean) => void;
+}> = ({ experimentSrmMethodDefined, onUseOrgDefaultChange }) => {
   const form = useFormContext();
   const orgSettings = useOrgSettings();
 
@@ -32,35 +25,38 @@ const SrmMethodSelector: FC<{
   const setSrmMethodToDefault = useCallback(
     (enable: boolean) => {
       if (enable) {
-        form.setValue("srmMethod", orgSettings.srmMethod ?? "chi_squared");
-        form.setValue("srmSlabWeight", orgSettings.srmSlabWeight ?? 0.0);
+        form.setValue(
+          "srmMethod",
+          orgSettings.srmMethod ?? DEFAULT_SRM_METHOD,
+        );
+        form.setValue(
+          "srmSlabWeight",
+          orgSettings.srmSlabWeight ?? DEFAULT_SRM_SLAB_WEIGHT,
+        );
         form.setValue(
           "srmDirichletConcentration",
-          orgSettings.srmDirichletConcentration ?? 10000,
+          orgSettings.srmDirichletConcentration ??
+            DEFAULT_SRM_DIRICHLET_CONCENTRATION,
         );
       }
       setUsingOrgSrmMethod(enable);
+      onUseOrgDefaultChange(enable);
     },
     [
       form,
       orgSettings.srmMethod,
       orgSettings.srmSlabWeight,
       orgSettings.srmDirichletConcentration,
+      onUseOrgDefaultChange,
     ],
   );
 
-  // Write a hidden flag so the submit handler knows whether to clear srmMethod
-  React.useEffect(() => {
-    form.setValue("_srmUseOrgDefault", usingOrgSrmMethod);
-  }, [form, usingOrgSrmMethod]);
-
-  const srmMethod = form.watch("srmMethod") ?? "chi_squared";
+  const srmMethod = form.watch("srmMethod") ?? DEFAULT_SRM_METHOD;
 
   return (
     <>
-      {/* TODO: migrate Bootstrap layout classes to Radix (matches existing pattern in this file) */}
-      <div className="d-flex flex-row no-gutters align-items-top">
-        <div className="col-5">
+      <Flex gap="4" align="start">
+        <Box style={{ flex: "0 0 40%" }}>
           <SelectField
             label="SRM Test Method"
             labelClassName="font-weight-bold"
@@ -75,22 +71,20 @@ const SrmMethodSelector: FC<{
             helpText="Chi-squared is the default. Sequential (SSRM) is better suited for experiments monitored continuously."
             disabled={usingOrgSrmMethod}
           />
-        </div>
-        <div className="col align-self-center">
-          <label className="ml-5">
-            <input
-              type="checkbox"
-              className="form-check-input"
-              checked={usingOrgSrmMethod}
-              onChange={(e) => setSrmMethodToDefault(e.target.checked)}
-            />
+        </Box>
+        <Box pt="5">
+          <label>
+            <Checkbox
+              value={usingOrgSrmMethod}
+              setValue={(v) => setSrmMethodToDefault(v)}
+            />{" "}
             Reset to Organization Default
           </label>
-        </div>
-      </div>
+        </Box>
+      </Flex>
       {srmMethod === "sequential" && (
-        <div className="d-flex flex-row no-gutters" style={{ gap: "16px" }}>
-          <div className="col-3">
+        <Flex gap="4">
+          <Box style={{ flex: 1 }}>
             <Field
               label="Slab Weight"
               helpText="Mixture weight for the diffuse prior. 0 = spike only."
@@ -105,8 +99,8 @@ const SrmMethodSelector: FC<{
                 max: 1,
               })}
             />
-          </div>
-          <div className="col-3">
+          </Box>
+          <Box style={{ flex: 1 }}>
             <Field
               label="Spike Concentration"
               helpText="Dirichlet concentration for the informative prior."
@@ -119,8 +113,8 @@ const SrmMethodSelector: FC<{
                 min: 1,
               })}
             />
-          </div>
-        </div>
+          </Box>
+        </Flex>
       )}
     </>
   );

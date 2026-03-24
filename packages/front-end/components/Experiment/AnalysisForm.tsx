@@ -11,6 +11,9 @@ import { datetime, getValidDate } from "shared/dates";
 import {
   DEFAULT_LOOKBACK_OVERRIDE_VALUE_UNIT,
   DEFAULT_SEQUENTIAL_TESTING_TUNING_PARAMETER,
+  DEFAULT_SRM_DIRICHLET_CONCENTRATION,
+  DEFAULT_SRM_METHOD,
+  DEFAULT_SRM_SLAB_WEIGHT,
 } from "shared/constants";
 import { isProjectListValidForProject } from "shared/util";
 import { getScopedSettings } from "shared/settings";
@@ -161,14 +164,16 @@ const AnalysisForm: FC<{
           ? experiment.sequentialTestingTuningParameter
           : (orgSettings.sequentialTestingTuningParameter ??
             DEFAULT_SEQUENTIAL_TESTING_TUNING_PARAMETER),
-      srmMethod: experiment.srmMethod ?? orgSettings.srmMethod ?? "chi_squared",
+      srmMethod:
+        experiment.srmMethod ?? orgSettings.srmMethod ?? DEFAULT_SRM_METHOD,
       srmSlabWeight:
-        experiment.srmSlabWeight ?? orgSettings.srmSlabWeight ?? 0.0,
+        experiment.srmSlabWeight ??
+        orgSettings.srmSlabWeight ??
+        DEFAULT_SRM_SLAB_WEIGHT,
       srmDirichletConcentration:
         experiment.srmDirichletConcentration ??
         orgSettings.srmDirichletConcentration ??
-        10000,
-      _srmUseOrgDefault: experiment.srmMethod === undefined,
+        DEFAULT_SRM_DIRICHLET_CONCENTRATION,
       goalMetrics: experiment.goalMetrics,
       guardrailMetrics: experiment.guardrailMetrics || [],
       secondaryMetrics: experiment.secondaryMetrics || [],
@@ -216,6 +221,9 @@ const AnalysisForm: FC<{
 
   const [usingSequentialTestingDefault, setUsingSequentialTestingDefault] =
     useState(experiment.sequentialTestingEnabled === undefined);
+  const [usingSrmOrgDefault, setUsingSrmOrgDefault] = useState(
+    experiment.srmMethod === undefined,
+  );
   const [disableBanditConversionWindow, setDisableBanditConversionWindow] =
     useState(() => {
       if (experiment.type !== "multi-armed-bandit") return false;
@@ -342,12 +350,11 @@ const AnalysisForm: FC<{
             DEFAULT_SEQUENTIAL_TESTING_TUNING_PARAMETER;
         }
         // Clear experiment-level SRM override when using org default
-        if (value._srmUseOrgDefault) {
+        if (usingSrmOrgDefault) {
           body.srmMethod = undefined;
           body.srmSlabWeight = undefined;
           body.srmDirichletConcentration = undefined;
         }
-        delete (body as Record<string, unknown>)._srmUseOrgDefault;
 
         // bandits
         if (
@@ -856,6 +863,7 @@ const AnalysisForm: FC<{
         <FormProvider {...form}>
           <SrmMethodSelector
             experimentSrmMethodDefined={experiment.srmMethod !== undefined}
+            onUseOrgDefaultChange={setUsingSrmOrgDefault}
           />
         </FormProvider>
         {editMetrics && (

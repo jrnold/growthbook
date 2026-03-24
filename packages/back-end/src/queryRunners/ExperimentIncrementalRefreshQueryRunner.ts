@@ -38,8 +38,8 @@ import { updateReport } from "back-end/src/models/ReportModel";
 import {
   analyzeExperimentResults,
   analyzeExperimentTraffic,
+  extractSrmSettings,
 } from "back-end/src/services/stats";
-import { extractSrmSettings } from "back-end/src/util/ssrm-integration";
 import {
   getExperimentSettingsHashForIncrementalRefresh,
   getMetricSettingsHashForIncrementalRefresh,

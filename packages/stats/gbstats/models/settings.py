@@ -34,7 +34,6 @@ class AnalysisSettingsForStatsEngine:
     srm_method: Literal["chi_squared", "sequential"] = "chi_squared"
     srm_slab_weight: float = 0.0
     srm_dirichlet_concentration: float = 10000.0
-    srm_daily_users: List[List[int]] = field(default_factory=list)
 
 
 @dataclass
@@ -93,6 +92,7 @@ class DataForStatsEngine:
     analyses: List[AnalysisSettingsForStatsEngine]
     query_results: List[QueryResultsForStatsEngine]
     bandit_settings: Optional[BanditSettingsForStatsEngine]
+    srm_daily_users: List[List[int]] = field(default_factory=list)
 
 
 @dataclass
