@@ -451,6 +451,11 @@ export default {
             },
             {
               type: "doc",
+              id: "statistics/srm",
+              label: "SRM Detection",
+            },
+            {
+              type: "doc",
               id: "statistics/multiple-corrections",
               label: "Multiple Testing Corrections",
             },
