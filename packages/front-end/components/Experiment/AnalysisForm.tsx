@@ -14,6 +14,7 @@ import {
   DEFAULT_SRM_DIRICHLET_CONCENTRATION,
   DEFAULT_SRM_METHOD,
   DEFAULT_SRM_SLAB_WEIGHT,
+  DEFAULT_SRM_THRESHOLD,
 } from "shared/constants";
 import { isProjectListValidForProject } from "shared/util";
 import { getScopedSettings } from "shared/settings";
@@ -166,6 +167,10 @@ const AnalysisForm: FC<{
             DEFAULT_SEQUENTIAL_TESTING_TUNING_PARAMETER),
       srmMethod:
         experiment.srmMethod ?? orgSettings.srmMethod ?? DEFAULT_SRM_METHOD,
+      srmThreshold:
+        experiment.srmThreshold ??
+        orgSettings.srmThreshold ??
+        DEFAULT_SRM_THRESHOLD,
       srmSlabWeight:
         experiment.srmSlabWeight ??
         orgSettings.srmSlabWeight ??
@@ -300,13 +305,8 @@ const AnalysisForm: FC<{
     form.watch("secondaryMetrics").length > 0;
 
   // Check if any advanced settings should be shown
-  const hasAdvancedSettings =
-    !isBandit &&
-    !isHoldout &&
-    (datasourceProperties?.experimentSegments ||
-      datasourceProperties?.separateExperimentResultQueries ||
-      datasourceProperties?.queryLanguage === "sql" ||
-      hasMetrics);
+  // SRM method selector is always present in advanced settings
+  const hasAdvancedSettings = !isBandit && !isHoldout;
 
   return (
     <Modal
@@ -352,6 +352,7 @@ const AnalysisForm: FC<{
         // Clear experiment-level SRM override when using org default
         if (usingSrmOrgDefault) {
           body.srmMethod = undefined;
+          body.srmThreshold = undefined;
           body.srmSlabWeight = undefined;
           body.srmDirichletConcentration = undefined;
         }
@@ -860,12 +861,6 @@ const AnalysisForm: FC<{
               </div>
             </div>
           )}
-        <FormProvider {...form}>
-          <SrmMethodSelector
-            experimentSrmMethodDefined={experiment.srmMethod !== undefined}
-            onUseOrgDefaultChange={setUsingSrmOrgDefault}
-          />
-        </FormProvider>
         {editMetrics && (
           <>
             {isBandit && (
@@ -1095,6 +1090,14 @@ const AnalysisForm: FC<{
                         </div>
                       </>
                     )}
+                    <FormProvider {...form}>
+                      <SrmMethodSelector
+                        experimentSrmMethodDefined={
+                          experiment.srmMethod !== undefined
+                        }
+                        onUseOrgDefaultChange={setUsingSrmOrgDefault}
+                      />
+                    </FormProvider>
                   </div>
                 </Collapsible>
               </>

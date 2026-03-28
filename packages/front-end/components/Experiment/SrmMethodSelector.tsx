@@ -5,6 +5,7 @@ import {
   DEFAULT_SRM_DIRICHLET_CONCENTRATION,
   DEFAULT_SRM_METHOD,
   DEFAULT_SRM_SLAB_WEIGHT,
+  DEFAULT_SRM_THRESHOLD,
 } from "shared/constants";
 import useOrgSettings from "@/hooks/useOrgSettings";
 import Checkbox from "@/ui/Checkbox";
@@ -25,9 +26,10 @@ const SrmMethodSelector: FC<{
   const setSrmMethodToDefault = useCallback(
     (enable: boolean) => {
       if (enable) {
+        form.setValue("srmMethod", orgSettings.srmMethod ?? DEFAULT_SRM_METHOD);
         form.setValue(
-          "srmMethod",
-          orgSettings.srmMethod ?? DEFAULT_SRM_METHOD,
+          "srmThreshold",
+          orgSettings.srmThreshold ?? DEFAULT_SRM_THRESHOLD,
         );
         form.setValue(
           "srmSlabWeight",
@@ -45,6 +47,7 @@ const SrmMethodSelector: FC<{
     [
       form,
       orgSettings.srmMethod,
+      orgSettings.srmThreshold,
       orgSettings.srmSlabWeight,
       orgSettings.srmDirichletConcentration,
       onUseOrgDefaultChange,
@@ -82,40 +85,58 @@ const SrmMethodSelector: FC<{
           </label>
         </Box>
       </Flex>
-      {srmMethod === "sequential" && (
-        <Flex gap="4">
-          <Box style={{ flex: 1 }}>
-            <Field
-              label="Slab Weight"
-              helpText="Mixture weight for the diffuse prior. 0 = spike only."
-              type="number"
-              step="0.01"
-              min={0}
-              max={1}
-              disabled={usingOrgSrmMethod}
-              {...form.register("srmSlabWeight", {
-                valueAsNumber: true,
-                min: 0,
-                max: 1,
-              })}
-            />
-          </Box>
-          <Box style={{ flex: 1 }}>
-            <Field
-              label="Spike Concentration"
-              helpText="Dirichlet concentration for the informative prior."
-              type="number"
-              step={100}
-              min={1}
-              disabled={usingOrgSrmMethod}
-              {...form.register("srmDirichletConcentration", {
-                valueAsNumber: true,
-                min: 1,
-              })}
-            />
-          </Box>
-        </Flex>
-      )}
+      <Flex gap="4">
+        <Box style={{ flex: 1 }}>
+          <Field
+            label="P-value Threshold"
+            helpText="P-value below which SRM is flagged. Default is 0.001."
+            type="number"
+            step="0.001"
+            min={0}
+            max={1}
+            disabled={usingOrgSrmMethod}
+            {...form.register("srmThreshold", {
+              valueAsNumber: true,
+              min: 0,
+              max: 1,
+            })}
+          />
+        </Box>
+        {srmMethod === "sequential" && (
+          <>
+            <Box style={{ flex: 1 }}>
+              <Field
+                label="Concentration"
+                helpText="Dirichlet concentration for the informative prior."
+                type="number"
+                step={100}
+                min={1}
+                disabled={usingOrgSrmMethod}
+                {...form.register("srmDirichletConcentration", {
+                  valueAsNumber: true,
+                  min: 1,
+                })}
+              />
+            </Box>
+            <Box style={{ flex: 1 }}>
+              <Field
+                label="Slab Weight"
+                helpText="Mixture weight for the diffuse prior. 0 = spike only."
+                type="number"
+                step="0.01"
+                min={0}
+                max={1}
+                disabled={usingOrgSrmMethod}
+                {...form.register("srmSlabWeight", {
+                  valueAsNumber: true,
+                  min: 0,
+                  max: 1,
+                })}
+              />
+            </Box>
+          </>
+        )}
+      </Flex>
     </>
   );
 };

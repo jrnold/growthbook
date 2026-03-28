@@ -188,6 +188,7 @@ const EXPERIMENT_SECTION_KEYS: Record<
   sequentialTestingEnabled: "analysis",
   sequentialTestingTuningParameter: "analysis",
   srmMethod: "analysis",
+  srmThreshold: "analysis",
   srmSlabWeight: "analysis",
   srmDirichletConcentration: "analysis",
   attributionModel: "analysis",
