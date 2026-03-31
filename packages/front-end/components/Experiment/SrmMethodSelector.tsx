@@ -109,7 +109,7 @@ const SrmMethodSelector: FC<{
                 label="Concentration"
                 helpText="Dirichlet concentration for the informative prior."
                 type="number"
-                step={100}
+                step={1}
                 min={1}
                 disabled={usingOrgSrmMethod}
                 {...form.register("srmDirichletConcentration", {
