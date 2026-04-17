@@ -265,3 +265,21 @@ helpers.date = strictHelper(function (dateStr: string, formatStr: string) {
   // Convert to UTC as that is what most DBs store
   return formatInTimeZone(parseISO(dateStr), "UTC", formatStr);
 });
+
+/**
+ * Safely quote a value as a SQL string literal by escaping single quotes
+ * and wrapping in single quotes.
+ *
+ * ```handlebars
+ * {{sqlstring customFields.region}}
+ * <!-- for "us-east" results in:  'us-east' -->
+ * <!-- for "it's" results in:  'it''s' -->
+ * ```
+ * @param {String} `val` The value to quote.
+ * @return {String}
+ * @api public
+ */
+helpers.sqlstring = strictHelper(function (val: string) {
+  if (!isString(val)) return new Handlebars.SafeString("''");
+  return new Handlebars.SafeString("'" + val.replace(/'/g, "''") + "'");
+});

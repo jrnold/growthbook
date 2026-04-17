@@ -197,6 +197,45 @@ describe("uppercase", function () {
   });
 });
 
+describe("sqlstring", function () {
+  it("should return empty quoted string if undefined", function () {
+    const fn = compile("{{sqlstring}}") as HandlebarsCompileFunction;
+    expect(fn()).toBe("''");
+  });
+
+  it("should wrap a simple string in single quotes", function () {
+    const fn = compile('{{sqlstring "us-east"}}') as HandlebarsCompileFunction;
+    expect(fn()).toBe("'us-east'");
+  });
+
+  it("should escape single quotes by doubling them", function () {
+    const fn = compile("{{sqlstring val}}") as HandlebarsCompileFunction;
+    expect(fn({ val: "it's" })).toBe("'it''s'");
+  });
+
+  it("should handle multiple single quotes", function () {
+    const fn = compile("{{sqlstring val}}") as HandlebarsCompileFunction;
+    expect(fn({ val: "a'b'c" })).toBe("'a''b''c'");
+  });
+
+  it("should handle empty string", function () {
+    const fn = compile('{{sqlstring ""}}') as HandlebarsCompileFunction;
+    expect(fn()).toBe("''");
+  });
+
+  it("should handle strings with no special characters", function () {
+    const fn = compile(
+      '{{sqlstring "hello world"}}',
+    ) as HandlebarsCompileFunction;
+    expect(fn()).toBe("'hello world'");
+  });
+
+  it("should handle a variable value", function () {
+    const fn = compile("{{sqlstring name}}") as HandlebarsCompileFunction;
+    expect(fn({ name: "O'Brien" })).toBe("'O''Brien'");
+  });
+});
+
 describe("date", function () {
   it("should throw a RangeError if undefined", function () {
     const fn = compile("{{date}}") as HandlebarsCompileFunction;
