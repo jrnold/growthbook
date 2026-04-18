@@ -164,7 +164,7 @@ import { ReqContext } from "back-end/types/request";
 import { SourceIntegrationInterface } from "back-end/src/types/Integration";
 import {
   getBaseIdTypeAndJoins,
-  compileSqlTemplate,
+  compileSqlTemplate as compileSqlTemplateUtil,
   replaceCountStar,
 } from "back-end/src/util/sql";
 import { formatInformationSchema } from "back-end/src/util/informationSchemas";
@@ -398,6 +398,14 @@ export default abstract class SqlIntegration
   escapeStringLiteral(value: string): string {
     return value.replace(/'/g, `''`);
   }
+  // Compile a SQL template using the dialect-aware `escapeStringLiteral` for
+  // this integration so helpers like `{{sqlstring}}` produce output that's
+  // safe for the current database.
+  compileSqlTemplate(sql: string, vars: SQLVars): string {
+    return compileSqlTemplateUtil(sql, vars, {
+      escapeStringLiteral: this.escapeStringLiteral.bind(this),
+    });
+  }
   castUserDateCol(column: string): string {
     return column;
   }
@@ -562,7 +570,7 @@ export default abstract class SqlIntegration
             MAX(${this.castUserDateCol("timestamp")}) as latest_data
           FROM
             (
-              ${compileSqlTemplate(q.query, { startDate: params.from })}
+              ${this.compileSqlTemplate(q.query, { startDate: params.from })}
             ) e${i}
           WHERE
             timestamp > ${this.toTimestamp(params.from)}
@@ -835,7 +843,7 @@ export default abstract class SqlIntegration
         const factTable = factTableMap.get(settings.sourceId);
         if (factTable) {
           const sql = factTable.sql;
-          return compileSqlTemplate(
+          return this.compileSqlTemplate(
             `
           __source AS (
             SELECT
@@ -911,7 +919,7 @@ export default abstract class SqlIntegration
 
       return `
       __rawExperiment AS (
-        ${compileSqlTemplate(exposureQuery.query, {
+        ${this.compileSqlTemplate(exposureQuery.query, {
           startDate: settings.startDate,
           endDate: settings.endDate ?? undefined,
         })}
@@ -1661,7 +1669,7 @@ export default abstract class SqlIntegration
     const testDays = params.testDays ?? DEFAULT_TEST_QUERY_DAYS;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - testDays);
-    const limitedQuery = compileSqlTemplate(
+    const limitedQuery = this.compileSqlTemplate(
       `WITH __table as (
         ${query}
       )
@@ -2027,7 +2035,7 @@ export default abstract class SqlIntegration
       } else if (dimension?.type === "user") {
         // Replace any placeholders in the user defined dimension SQL
         const clonedDimension = cloneDeep<UserDimension>(dimension);
-        clonedDimension.dimension.sql = compileSqlTemplate(
+        clonedDimension.dimension.sql = this.compileSqlTemplate(
           dimension.dimension.sql,
           {
             startDate: settings.startDate,
@@ -2194,7 +2202,7 @@ export default abstract class SqlIntegration
     return `
     ${params.includeIdJoins ? idJoinSQL : ""}
     __rawExperiment AS (
-      ${compileSqlTemplate(exposureQuery.query, {
+      ${this.compileSqlTemplate(exposureQuery.query, {
         startDate: settings.startDate,
         endDate: settings.endDate,
         experimentId: settings.experimentId,
@@ -2595,7 +2603,7 @@ export default abstract class SqlIntegration
       `-- Dimension Traffic Query
     WITH
       __rawExperiment AS (
-        ${compileSqlTemplate(exposureQuery.query, {
+        ${this.compileSqlTemplate(exposureQuery.query, {
           startDate: startDate,
         })}
       ),
@@ -2735,7 +2743,7 @@ export default abstract class SqlIntegration
 
             return `
               SELECT timestamp, experiment_id, variation_id, ${dimensionSelectString} FROM (
-                ${compileSqlTemplate(exposureQuery.query, {
+                ${this.compileSqlTemplate(exposureQuery.query, {
                   startDate: startDate,
                 })}
               ) ${tableAlias}
@@ -2764,7 +2772,7 @@ export default abstract class SqlIntegration
       ? this.datasource.settings.queries.featureUsage[0].query
       : "";
 
-    const compiledFeatureEvalQuery = compileSqlTemplate(featureEvalQuery, {
+    const compiledFeatureEvalQuery = this.compileSqlTemplate(featureEvalQuery, {
       startDate: oneWeekAgo,
     });
 
@@ -5751,7 +5759,7 @@ export default abstract class SqlIntegration
       `
 WITH
   __factTable AS (
-    ${compileSqlTemplate(factTable.sql, {
+    ${this.compileSqlTemplate(factTable.sql, {
       startDate: start,
       templateVariables: {
         eventName: factTable.eventName,
@@ -5942,7 +5950,7 @@ ORDER BY column_name, count DESC
       }
     }
 
-    return compileSqlTemplate(
+    return this.compileSqlTemplate(
       `-- Fact Table (${factTable.name})
       SELECT
         ${castIdToString ? this.castToString(userIdCol) : userIdCol} as ${baseIdType},
@@ -6026,7 +6034,7 @@ ORDER BY column_name, count DESC
       ${join}
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
   `;
-    return sqlVars ? compileSqlTemplate(baseSql, sqlVars) : baseSql;
+    return sqlVars ? this.compileSqlTemplate(baseSql, sqlVars) : baseSql;
   }
 
   private getMetricCTE({
@@ -6146,7 +6154,7 @@ ORDER BY column_name, count DESC
       where.push(`${cols.timestamp} <= ${this.toTimestamp(endDate)}`);
     }
 
-    return compileSqlTemplate(
+    return this.compileSqlTemplate(
       `-- Metric (${metric.name})
       SELECT
         ${userIdCol} as ${baseIdType},
@@ -6221,7 +6229,7 @@ ORDER BY column_name, count DESC
         );
       }
       segmentSql = sqlVars
-        ? compileSqlTemplate(segment.sql, sqlVars)
+        ? this.compileSqlTemplate(segment.sql, sqlVars)
         : segment.sql;
     } else {
       if (!segment.factTableId) {
@@ -6540,7 +6548,7 @@ ORDER BY column_name, count DESC
             ${id2}
           FROM
             (
-              ${compileSqlTemplate(join.query, {
+              ${this.compileSqlTemplate(join.query, {
                 startDate: from,
                 endDate: to,
                 experimentId,
@@ -6564,7 +6572,7 @@ ORDER BY column_name, count DESC
           user_id,
           anonymous_id
         FROM
-          (${compileSqlTemplate(settings.queries.pageviewsQuery, {
+          (${this.compileSqlTemplate(settings.queries.pageviewsQuery, {
             startDate: from,
             endDate: to,
             experimentId,
@@ -7115,7 +7123,7 @@ ORDER BY column_name, count DESC
             : ""
         }
         , __newExposures AS (
-          ${compileSqlTemplate(exposureQuery.query, {
+          ${this.compileSqlTemplate(exposureQuery.query, {
             startDate: settings.startDate,
             endDate: settings.endDate,
             experimentId: settings.experimentId,
@@ -8280,7 +8288,7 @@ ORDER BY column_name, count DESC
     );
 
     return {
-      sql: compileSqlTemplate(sql, {
+      sql: this.compileSqlTemplate(sql, {
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
       }),

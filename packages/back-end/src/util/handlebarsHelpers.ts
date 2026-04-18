@@ -268,28 +268,33 @@ helpers.date = strictHelper(function (dateStr: string, formatStr: string) {
 
 /**
  * Safely quote a value as a SQL string literal. String/number/boolean values
- * are coerced to a string, backslashes and single quotes are escaped (by
- * doubling), and the result is wrapped in single quotes. Other types
- * (null, undefined values passed via a variable, objects, arrays) render as
- * `''`.
+ * are coerced to a string, escaped using the dialect-aware
+ * `escapeStringLiteral` supplied via `compileSqlTemplate` (when available),
+ * and wrapped in single quotes. Other types (null, undefined values passed
+ * via a variable, objects, arrays) render as `''`.
  *
- * Backslashes are doubled in addition to single quotes so that the output
- * is safe on databases that treat backslash as an escape character inside
- * string literals (e.g. MySQL in its default mode, BigQuery, ClickHouse,
- * Databricks). Without this, a value like `foo\'; DROP TABLE users; --`
- * would escape out of the wrapping quotes.
+ * When no dialect-aware escape function is provided (e.g. outside of
+ * `compileSqlTemplate`), the helper falls back to doubling both backslashes
+ * and single quotes. This is safe on databases that treat backslash as an
+ * escape character inside string literals (e.g. MySQL in its default mode,
+ * BigQuery, ClickHouse, Databricks) and on ANSI-SQL dialects; without it, a
+ * value like `foo\'; DROP TABLE users; --` would escape out of the wrapping
+ * quotes on backslash-sensitive dialects.
  *
  * ```handlebars
  * {{sqlstring customFields.region}}
  * <!-- for "us-east" results in:  'us-east' -->
  * <!-- for "it's" results in:  'it''s' -->
- * <!-- for "C:\\path" results in:  'C:\\\\path' -->
  * ```
  * @param {unknown} `val` The value to quote.
  * @return {String}
  * @api public
  */
-helpers.sqlstring = strictHelper(function (val: unknown) {
+helpers.sqlstring = strictHelper(function (...args: unknown[]) {
+  // Handlebars always passes the HelperOptions object as the last argument.
+  const options = args[args.length - 1] as HelperOptions;
+  const val = args.length > 1 ? args[0] : undefined;
+
   if (
     typeof val !== "string" &&
     typeof val !== "number" &&
@@ -297,6 +302,12 @@ helpers.sqlstring = strictHelper(function (val: unknown) {
   ) {
     return new Handlebars.SafeString("''");
   }
-  const escaped = String(val).replace(/\\/g, "\\\\").replace(/'/g, "''");
-  return new Handlebars.SafeString("'" + escaped + "'");
+
+  const escape =
+    (options?.data?.escapeStringLiteral as
+      | ((s: string) => string)
+      | undefined) ??
+    ((s: string) => s.replace(/\\/g, "\\\\").replace(/'/g, "''"));
+
+  return new Handlebars.SafeString("'" + escape(String(val)) + "'");
 });
