@@ -12,11 +12,14 @@ import {
   getReviewSetting,
 } from "shared/util";
 import { useForm } from "react-hook-form";
-import { EventUserLoggedIn } from "shared/types/events/event-types";
+import {
+  EventUserLoggedIn,
+  EventUserApiKey,
+} from "shared/types/events/event-types";
 import { ExperimentInterfaceStringDates } from "shared/types/experiment";
 import { FaArrowLeft } from "react-icons/fa";
 import { Flex } from "@radix-ui/themes";
-import Avatar from "@/components/Avatar/Avatar";
+import EventUser from "@/components/Avatar/EventUser";
 import { getCurrentUser, useUser } from "@/services/UserContext";
 import { useAuth } from "@/services/auth";
 import {
@@ -82,7 +85,10 @@ export default function RequestReviewModal({
   const isPendingReview =
     revision?.status === "pending-review" ||
     revision?.status === "changes-requested";
-  const createdBy = revision?.createdBy as EventUserLoggedIn;
+  const createdBy = revision?.createdBy as
+    | EventUserLoggedIn
+    | EventUserApiKey
+    | undefined;
   const requireReviews = organization?.settings?.requireReviews;
   const reviewSetting = Array.isArray(requireReviews)
     ? getReviewSetting(requireReviews, feature)
@@ -90,7 +96,7 @@ export default function RequestReviewModal({
   const isBlockedContributor =
     reviewSetting?.blockSelfApproval &&
     (revision?.contributors ?? []).some(
-      (c) => c?.type === "dashboard" && c.id === user?.id,
+      (c) => c != null && "id" in c && c.id === user?.id,
     );
   const canReview =
     isPendingReview &&
@@ -391,21 +397,28 @@ export default function RequestReviewModal({
                 <Flex align="center" gap="2" wrap="wrap" mt="1">
                   {[revision.createdBy, ...revision.contributors]
                     .filter(
-                      (u): u is EventUserLoggedIn =>
-                        u != null && u.type === "dashboard",
+                      (u): u is EventUserLoggedIn | EventUserApiKey =>
+                        u != null &&
+                        (u.type === "dashboard" || u.type === "api_key"),
                     )
                     .filter(
                       (u, idx, arr) =>
-                        arr.findIndex((x) => x.id === u.id) === idx,
+                        arr.findIndex(
+                          (x) => "id" in x && "id" in u && x.id === u.id,
+                        ) === idx,
                     )
                     .map((lu) => {
                       return (
-                        <Flex key={lu.id} align="center" gap="1">
-                          <Avatar
-                            email={lu.email}
-                            size={18}
-                            name={lu.name}
-                            showEmail
+                        <Flex
+                          key={"id" in lu ? lu.id : lu.apiKey}
+                          align="center"
+                          gap="1"
+                          wrap="wrap"
+                        >
+                          <EventUser
+                            user={lu}
+                            display="avatar-name-email"
+                            size="sm"
                           />
                         </Flex>
                       );
@@ -496,10 +509,7 @@ export default function RequestReviewModal({
                         {allDiffsWithChanges
                           .filter((d) => d.customRender)
                           .map((d) => (
-                            <div
-                              key={d.title}
-                              className="list-group-item list-group-item-light pb-3"
-                            >
+                            <div key={d.title} className="appbox bg-light p-3">
                               <strong className="d-block mb-2">
                                 {d.title}
                               </strong>

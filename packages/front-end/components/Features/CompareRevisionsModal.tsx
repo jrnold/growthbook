@@ -44,9 +44,7 @@ import Link from "@/ui/Link";
 import { Select, SelectItem } from "@/ui/Select";
 import Badge from "@/ui/Badge";
 import LoadingOverlay from "@/components/LoadingOverlay";
-import Avatar from "@/components/Avatar/Avatar";
 import EventUser from "@/components/Avatar/EventUser";
-import { useUser } from "@/services/UserContext";
 import Code from "@/components/SyntaxHighlighting/Code";
 import OverflowText from "@/components/Experiment/TabbedPage/OverflowText";
 import RevisionLabel, {
@@ -131,7 +129,7 @@ function RevisionCompareLabel({
   return (
     <Flex align="start" gap="4" wrap="nowrap" mb={mb} mt={mt}>
       <Flex direction="column">
-        <Flex align="center" justify="between" gap="2">
+        <Flex align="center" gap="4">
           <Flex align="center" gap="1">
             {revAFailed && (
               <Tooltip body="Could not load revision">
@@ -156,7 +154,7 @@ function RevisionCompareLabel({
           (() => {
             return DRAFT_REVISION_STATUSES.includes(revA.status) &&
               revA.baseVersion !== liveVersion ? (
-              <HelperText status="warning" size="sm">
+              <HelperText status="info" size="sm">
                 based on: Revision {revA.baseVersion}
               </HelperText>
             ) : (
@@ -167,7 +165,11 @@ function RevisionCompareLabel({
           })()}
         {revA && (
           <Box mt="2">
-            <EventUser user={revA.createdBy} display="avatar-with-email" />
+            <EventUser
+              user={revA.createdBy}
+              display="avatar-name-email"
+              size="sm"
+            />
             <CoAuthors rev={revA} logs={logsA} />
           </Box>
         )}
@@ -185,7 +187,7 @@ function RevisionCompareLabel({
         style={{ flexShrink: 0, marginTop: "var(--space-4)" }}
       />
       <Flex direction="column">
-        <Flex align="center" justify="between" gap="2">
+        <Flex align="center" gap="4">
           <Flex align="center" gap="1">
             {revBFailed && (
               <Tooltip body="Could not load revision">
@@ -210,7 +212,7 @@ function RevisionCompareLabel({
           (() => {
             return DRAFT_REVISION_STATUSES.includes(revB.status) &&
               revB.baseVersion !== liveVersion ? (
-              <HelperText status="warning" size="sm">
+              <HelperText status="info" size="sm">
                 based on: Revision {revB.baseVersion}
               </HelperText>
             ) : (
@@ -221,7 +223,11 @@ function RevisionCompareLabel({
           })()}
         {revB && (
           <Box mt="2">
-            <EventUser user={revB.createdBy} display="avatar-with-email" />
+            <EventUser
+              user={revB.createdBy}
+              display="avatar-name-email"
+              size="sm"
+            />
             <CoAuthors rev={revB} logs={logsB} />
           </Box>
         )}
@@ -313,7 +319,11 @@ function RevisionCommentItem({
           notes
         </Text>
         {logEntry?.user && (
-          <EventUser user={logEntry.user} display="avatar-with-email" />
+          <EventUser
+            user={logEntry.user}
+            display="avatar-name-email"
+            size="sm"
+          />
         )}
         {logEntry?.timestamp && (
           <Text size="small" color="text-low">
@@ -810,26 +820,19 @@ function computeBeforeAfter(
 }
 
 function LogEntryMeta({ log }: { log: RevisionLog }) {
-  const { users } = useUser();
-
-  const displayName =
-    log.user?.type === "dashboard"
-      ? (users.get(log.user.id)?.name ?? log.user.name ?? "")
-      : log.user?.type === "api_key"
-        ? "API Key"
-        : "System";
-
   const rows: [string, React.ReactNode][] = [
     ...(log.subject
       ? ([["Subject", log.subject]] as [string, React.ReactNode][])
       : []),
     [
       "Author",
-      log.user?.type === "dashboard" ? (
-        <Avatar email={log.user.email} size={24} name={displayName} showEmail />
-      ) : (
-        <Text size="small">{displayName}</Text>
-      ),
+      <EventUser
+        user={log.user}
+        display="avatar-name-email"
+        size="sm"
+        key="author"
+        wrap={true}
+      />,
     ],
     ["Date", datetime(log.timestamp)],
   ];
@@ -883,7 +886,7 @@ function RawLogDetails({ log }: { log: RevisionLog }) {
       {open && (
         <Box mt="3">
           <div className="diff-wrapper">
-            <div className="list-group-item list-group-item-light">
+            <div className="bg-highlight">
               <Code language="json" code={prettyValue} />
             </div>
           </div>
@@ -2028,7 +2031,11 @@ export default function CompareRevisionsModal({
                                       {logEntry.user?.type === "dashboard"
                                         ? ` · ${logEntry.user.name}`
                                         : logEntry.user?.type === "api_key"
-                                          ? " · API"
+                                          ? logEntry.user.name
+                                            ? ` · ${logEntry.user.name} (API)`
+                                            : logEntry.user.email
+                                              ? ` · ${logEntry.user.email} (API)`
+                                              : " · API"
                                           : ""}
                                     </Text>
                                   </Flex>
