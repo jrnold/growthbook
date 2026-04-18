@@ -267,19 +267,36 @@ helpers.date = strictHelper(function (dateStr: string, formatStr: string) {
 });
 
 /**
- * Safely quote a value as a SQL string literal by escaping single quotes
- * and wrapping in single quotes.
+ * Safely quote a value as a SQL string literal. String/number/boolean values
+ * are coerced to a string, backslashes and single quotes are escaped (by
+ * doubling), and the result is wrapped in single quotes. Other types
+ * (null, undefined values passed via a variable, objects, arrays) render as
+ * `''`.
+ *
+ * Backslashes are doubled in addition to single quotes so that the output
+ * is safe on databases that treat backslash as an escape character inside
+ * string literals (e.g. MySQL in its default mode, BigQuery, ClickHouse,
+ * Databricks). Without this, a value like `foo\'; DROP TABLE users; --`
+ * would escape out of the wrapping quotes.
  *
  * ```handlebars
  * {{sqlstring customFields.region}}
  * <!-- for "us-east" results in:  'us-east' -->
  * <!-- for "it's" results in:  'it''s' -->
+ * <!-- for "C:\\path" results in:  'C:\\\\path' -->
  * ```
- * @param {String} `val` The value to quote.
+ * @param {unknown} `val` The value to quote.
  * @return {String}
  * @api public
  */
-helpers.sqlstring = strictHelper(function (val: string) {
-  if (!isString(val)) return new Handlebars.SafeString("''");
-  return new Handlebars.SafeString("'" + val.replace(/'/g, "''") + "'");
+helpers.sqlstring = strictHelper(function (val: unknown) {
+  if (
+    typeof val !== "string" &&
+    typeof val !== "number" &&
+    typeof val !== "boolean"
+  ) {
+    return new Handlebars.SafeString("''");
+  }
+  const escaped = String(val).replace(/\\/g, "\\\\").replace(/'/g, "''");
+  return new Handlebars.SafeString("'" + escaped + "'");
 });

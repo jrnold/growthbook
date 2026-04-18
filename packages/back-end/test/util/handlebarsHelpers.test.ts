@@ -234,6 +234,43 @@ describe("sqlstring", function () {
     const fn = compile("{{sqlstring name}}") as HandlebarsCompileFunction;
     expect(fn({ name: "O'Brien" })).toBe("'O''Brien'");
   });
+
+  it("should escape backslashes by doubling them", function () {
+    const fn = compile("{{sqlstring val}}") as HandlebarsCompileFunction;
+    expect(fn({ val: "C:\\path" })).toBe("'C:\\\\path'");
+  });
+
+  it("should prevent MySQL backslash-escape injection", function () {
+    // Without backslash escaping, MySQL (in its default mode) would treat
+    // the embedded `\'` as an escaped quote and let the rest of the string
+    // terminate the literal early, allowing injection.
+    const fn = compile("{{sqlstring val}}") as HandlebarsCompileFunction;
+    expect(fn({ val: "foo\\'; DROP TABLE users; --" })).toBe(
+      "'foo\\\\''; DROP TABLE users; --'",
+    );
+  });
+
+  it("should coerce numbers to quoted strings", function () {
+    const fn = compile("{{sqlstring val}}") as HandlebarsCompileFunction;
+    expect(fn({ val: 42 })).toBe("'42'");
+  });
+
+  it("should coerce booleans to quoted strings", function () {
+    const fn = compile("{{sqlstring val}}") as HandlebarsCompileFunction;
+    expect(fn({ val: true })).toBe("'true'");
+    expect(fn({ val: false })).toBe("'false'");
+  });
+
+  it("should return empty quoted string for null", function () {
+    const fn = compile("{{sqlstring val}}") as HandlebarsCompileFunction;
+    expect(fn({ val: null })).toBe("''");
+  });
+
+  it("should return empty quoted string for objects and arrays", function () {
+    const fn = compile("{{sqlstring val}}") as HandlebarsCompileFunction;
+    expect(fn({ val: { region: "us-east" } })).toBe("''");
+    expect(fn({ val: ["a", "b"] })).toBe("''");
+  });
 });
 
 describe("date", function () {
