@@ -106,8 +106,8 @@ const SrmMethodSelector: FC<{
           <>
             <Box style={{ flex: 1 }}>
               <Field
-                label="Concentration"
-                helpText="Dirichlet concentration for the informative prior."
+                label="Spike Concentration"
+                helpText="Dirichlet concentration for the spike (informative) prior. Higher values = tighter prior around expected weights."
                 type="number"
                 step={1}
                 min={1}

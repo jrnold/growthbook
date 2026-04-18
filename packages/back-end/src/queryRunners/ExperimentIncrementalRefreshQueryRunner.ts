@@ -922,6 +922,9 @@ export class ExperimentIncrementalRefreshQueryRunner extends QueryRunner<
     if (healthQuery) {
       const rows =
         healthQuery.result as ExperimentAggregateUnitsQueryResponseRows;
+      // SRM settings are shared across all analyses in a snapshot (populated
+      // from experiment/org in getDefaultExperimentAnalysisSettings and spread
+      // into additional analyses), so reading from analyses[0] is safe.
       const trafficHealth = analyzeExperimentTraffic({
         rows: rows,
         error: healthQuery.error,
