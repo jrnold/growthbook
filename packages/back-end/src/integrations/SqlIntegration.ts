@@ -2438,13 +2438,12 @@ export default abstract class SqlIntegration
           )} AS dim_exposure_date
           ${banditDates ? `${this.getBanditCaseWhen(banditDates)}` : ""}
           ${experimentDimensions
-            .map((d) =>
-              d.specifiedSlices.length
-                ? `, ${this.getDimensionInStatement(
-                    `dim_exp_${d.id}`,
-                    d.specifiedSlices,
-                  )} AS dim_exp_${d.id}`
-                : `, dim_exp_${d.id}`,
+            .map(
+              (d) =>
+                `, ${this.getDimensionInStatement(
+                  `dim_exp_${d.id}`,
+                  d.specifiedSlices,
+                )} AS dim_exp_${d.id}`,
             )
             .join("\n")}
           ${
@@ -7937,10 +7936,10 @@ ORDER BY column_name, count DESC
       params.dimensionsForPrecomputation.map((d) => {
         const col = this.getDimensionCol(d);
         // override value with case when statement for precomputed dimensions
-        // when slices are specified; otherwise pass through the raw column
-        const value = d.specifiedSlices.length
-          ? this.getDimensionInStatement(col.alias, d.specifiedSlices)
-          : col.value;
+        const value = this.getDimensionInStatement(
+          col.alias,
+          d.specifiedSlices,
+        );
         return {
           value,
           alias: col.alias,
