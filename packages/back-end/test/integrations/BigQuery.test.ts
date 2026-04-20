@@ -373,7 +373,9 @@ describe("getExperimentAggregateUnitsQuery dimension slicing", () => {
       useUnitsTable: false,
     });
 
-    // The bug was an empty IN () producing all-'__Other__' rows.
+    // The bug was an empty IN () producing a SQL syntax error that failed
+    // the traffic query at parse time (IN () is invalid SQL on BigQuery and
+    // every other standard engine).
     expect(sql).not.toMatch(/IN\s*\(\s*\)/);
     // With no slices we pass the raw column through in __distinctUnits.
     expect(sql).toMatch(/,\s*dim_exp_country\s*\n[^\n]*FROM/i);
