@@ -14058,6 +14058,11 @@ paths:
                                     required:
                                       - predefined
                                     additionalProperties: false
+                                  showAs:
+                                    type: string
+                                    enum:
+                                      - total
+                                      - per_unit
                                   type:
                                     type: string
                                     const: metric
@@ -14339,6 +14344,11 @@ paths:
                                     required:
                                       - predefined
                                     additionalProperties: false
+                                  showAs:
+                                    type: string
+                                    enum:
+                                      - total
+                                      - per_unit
                                   type:
                                     type: string
                                     const: fact_table
@@ -14629,6 +14639,11 @@ paths:
                                     required:
                                       - predefined
                                     additionalProperties: false
+                                  showAs:
+                                    type: string
+                                    enum:
+                                      - total
+                                      - per_unit
                                   type:
                                     type: string
                                     const: data_source
@@ -16998,6 +17013,11 @@ paths:
                   required:
                     - predefined
                   additionalProperties: false
+                showAs:
+                  type: string
+                  enum:
+                    - total
+                    - per_unit
                 type:
                   type: string
                   const: metric
@@ -17330,6 +17350,11 @@ paths:
                                 required:
                                   - predefined
                                 additionalProperties: false
+                              showAs:
+                                type: string
+                                enum:
+                                  - total
+                                  - per_unit
                               type:
                                 type: string
                                 const: metric
@@ -17631,6 +17656,11 @@ paths:
                   required:
                     - predefined
                   additionalProperties: false
+                showAs:
+                  type: string
+                  enum:
+                    - total
+                    - per_unit
                 type:
                   type: string
                   const: fact_table
@@ -17972,6 +18002,11 @@ paths:
                                 required:
                                   - predefined
                                 additionalProperties: false
+                              showAs:
+                                type: string
+                                enum:
+                                  - total
+                                  - per_unit
                               type:
                                 type: string
                                 const: fact_table
@@ -18282,6 +18317,11 @@ paths:
                   required:
                     - predefined
                   additionalProperties: false
+                showAs:
+                  type: string
+                  enum:
+                    - total
+                    - per_unit
                 type:
                   type: string
                   const: data_source
@@ -18640,6 +18680,11 @@ paths:
                                 required:
                                   - predefined
                                 additionalProperties: false
+                              showAs:
+                                type: string
+                                enum:
+                                  - total
+                                  - per_unit
                               type:
                                 type: string
                                 const: data_source
@@ -25155,6 +25200,11 @@ components:
                         required:
                           - predefined
                         additionalProperties: false
+                      showAs:
+                        type: string
+                        enum:
+                          - total
+                          - per_unit
                       type:
                         type: string
                         const: metric
@@ -25436,6 +25486,11 @@ components:
                         required:
                           - predefined
                         additionalProperties: false
+                      showAs:
+                        type: string
+                        enum:
+                          - total
+                          - per_unit
                       type:
                         type: string
                         const: fact_table
@@ -25726,6 +25781,11 @@ components:
                         required:
                           - predefined
                         additionalProperties: false
+                      showAs:
+                        type: string
+                        enum:
+                          - total
+                          - per_unit
                       type:
                         type: string
                         const: data_source
@@ -26870,6 +26930,11 @@ components:
                   required:
                     - predefined
                   additionalProperties: false
+                showAs:
+                  type: string
+                  enum:
+                    - total
+                    - per_unit
                 type:
                   type: string
                   const: metric
@@ -27121,6 +27186,11 @@ components:
                   required:
                     - predefined
                   additionalProperties: false
+                showAs:
+                  type: string
+                  enum:
+                    - total
+                    - per_unit
                 type:
                   type: string
                   const: fact_table
@@ -27381,6 +27451,11 @@ components:
                   required:
                     - predefined
                   additionalProperties: false
+                showAs:
+                  type: string
+                  enum:
+                    - total
+                    - per_unit
                 type:
                   type: string
                   const: data_source
