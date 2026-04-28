@@ -53,6 +53,7 @@ import {
   getLatestPhaseVariations,
 } from "shared/experiments";
 import { hoursBetween } from "shared/dates";
+import { buildAnalysisKey } from "shared/snapshot-analysis-chunks";
 import { v4 as uuidv4 } from "uuid";
 import { differenceInMinutes } from "date-fns";
 import { VisualChangesetInterface } from "shared/types/visual-changeset";
@@ -1377,6 +1378,7 @@ export async function planSnapshot({
     multipleExposures: 0,
     analyses: [
       {
+        analysisKey: buildAnalysisKey(),
         dateCreated: new Date(),
         results: [],
         settings: defaultAnalysisSettings,
@@ -1386,6 +1388,7 @@ export async function planSnapshot({
         .filter((a) => isAnalysisAllowed(snapshotSettings, a))
         .map((a) => {
           const analysis: ExperimentSnapshotAnalysis = {
+            analysisKey: buildAnalysisKey(),
             dateCreated: new Date(),
             results: [],
             settings: a,
@@ -1978,6 +1981,7 @@ async function getSnapshotAnalyses(
       return;
     }
     const analysis: ExperimentSnapshotAnalysis = {
+      analysisKey: buildAnalysisKey(),
       results: [],
       status: "running",
       settings: analysisSettings,
@@ -2076,6 +2080,7 @@ export async function createSnapshotAnalysis(
     throw new Error("Snapshot queries not available for analysis");
   }
   const analysis: ExperimentSnapshotAnalysis = {
+    analysisKey: buildAnalysisKey(),
     results: [],
     status: "running",
     settings: analysisSettings,
