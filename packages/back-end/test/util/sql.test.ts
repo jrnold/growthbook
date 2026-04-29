@@ -7,6 +7,7 @@ import {
   determineColumnTypes,
   getHost,
 } from "back-end/src/util/sql";
+import { baseDialect } from "back-end/src/integrations/dialects/base";
 
 describe("backend", () => {
   describe("compileSqlTemplate", () => {
@@ -210,7 +211,7 @@ describe("backend", () => {
     it("sqlstring helper uses a dialect-aware escape when supplied", () => {
       // Backslash-escape style (BigQuery / Databricks): escape both `\` and
       // `'` with a leading backslash. The template receives this dialect via
-      // the `escapeStringLiteral` option and the helper applies it.
+      // the `dialect` argument and the helper applies it.
       expect(
         compileSqlTemplate(
           `SELECT * WHERE region = {{sqlstring customFields.region}}`,
@@ -220,6 +221,7 @@ describe("backend", () => {
             customFields: { region: "it's\\weird" },
           },
           {
+            ...baseDialect,
             escapeStringLiteral: (v) => v.replace(/(['\\])/g, "\\$1"),
           },
         ),
@@ -238,6 +240,7 @@ describe("backend", () => {
             customFields: { region: "it's\\weird" },
           },
           {
+            ...baseDialect,
             escapeStringLiteral: (v) => v.replace(/'/g, "''"),
           },
         ),
