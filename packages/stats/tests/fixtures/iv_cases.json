@@ -1,0 +1,180 @@
+{
+  "description": "Language-neutral IV (Wald) test vectors. Inputs are per-arm sufficient statistics as emitted by the ratio-metric SQL; stat_a is control. Take-up variance is p(1-p); for a count outcome, variance and covariance use n-1; for a binomial outcome, variance is p(1-p) and covariance uses n (y_sum_squares equals y_sum). expected_relative is the complier effect divided by the absolute complier control mean; it needs y_squared_d_sum_product unless the outcome is binomial.",
+  "cases": [
+    {
+      "stat_a": {
+        "n": 5000,
+        "y_sum": 59837.270254015166,
+        "y_sum_squares": 767514.638001122,
+        "d_sum": 0.0,
+        "y_d_sum_product": 0.0,
+        "y_squared_d_sum_product": 0.0
+      },
+      "stat_b": {
+        "n": 5000,
+        "y_sum": 64119.729519422224,
+        "y_sum_squares": 885944.8388852279,
+        "d_sum": 2070.0,
+        "y_d_sum_product": 31176.76363675943,
+        "y_squared_d_sum_product": 488316.4786110846
+      },
+      "true_relative_lift": 0.15151515151515152,
+      "expected_relative": {
+        "point_estimate": 0.1592329441310516,
+        "standard_error": 0.013378819435541244,
+        "complier_control_mean": 12.992417570701633
+      },
+      "reference_bootstrap_relative_standard_error": 0.013487202854094304,
+      "outcome_type": "count",
+      "name": "one_sided_noncompliance",
+      "note": "Control cannot take up; strong instrument",
+      "true_cace": 2.0,
+      "expected": {
+        "point_estimate": 2.0688209011628307,
+        "standard_error": 0.15363569268232488,
+        "first_stage_f": 3532.423208191126
+      },
+      "reference_2sls_hc0_standard_error": 0.15362111706553272
+    },
+    {
+      "stat_a": {
+        "n": 4000,
+        "y_sum": 49754.71919779203,
+        "y_sum_squares": 664599.8556191428,
+        "d_sum": 818.0,
+        "y_d_sum_product": 12418.843732405458,
+        "y_squared_d_sum_product": 195655.28220360336
+      },
+      "stat_b": {
+        "n": 6000,
+        "y_sum": 76726.17594883154,
+        "y_sum_squares": 1055043.6582363208,
+        "d_sum": 3043.0,
+        "y_d_sum_product": 44127.04255699144,
+        "y_squared_d_sum_product": 669122.7996597348
+      },
+      "true_relative_lift": 0.11904761904761905,
+      "expected_relative": {
+        "point_estimate": 0.08947343734158619,
+        "standard_error": 0.017971733712789588,
+        "complier_control_mean": 12.88803954088093
+      },
+      "reference_bootstrap_relative_standard_error": 0.018297182911774467,
+      "outcome_type": "count",
+      "name": "two_sided_unequal_arms",
+      "note": "Some control take-up; unequal arm sizes",
+      "true_cace": 1.5,
+      "expected": {
+        "point_estimate": 1.1531371983169079,
+        "standard_error": 0.2182313912291368,
+        "first_stage_f": 1112.708460943355
+      },
+      "reference_2sls_hc0_standard_error": 0.21820837799989132
+    },
+    {
+      "stat_a": {
+        "n": 8000,
+        "y_sum": 93792.27170998814,
+        "y_sum_squares": 1175560.7975273253,
+        "d_sum": 2445.0,
+        "y_d_sum_product": 30361.308845472777,
+        "y_squared_d_sum_product": 398124.3123916286
+      },
+      "stat_b": {
+        "n": 8000,
+        "y_sum": 88563.42364110042,
+        "y_sum_squares": 1060376.8256116016,
+        "d_sum": 7153.0,
+        "y_d_sum_product": 79899.44760300795,
+        "y_squared_d_sum_product": 963738.315853689
+      },
+      "true_relative_lift": -0.08620689655172414,
+      "expected_relative": {
+        "point_estimate": -0.09547445225460172,
+        "standard_error": 0.007132979148559769,
+        "complier_control_mean": 11.632749963131456
+      },
+      "reference_bootstrap_relative_standard_error": 0.0071258836396039605,
+      "outcome_type": "count",
+      "name": "negative_effect_high_takeup",
+      "note": "Treatment hurts compliers",
+      "true_cace": -1.0,
+      "expected": {
+        "point_estimate": -1.1106304309447141,
+        "standard_error": 0.08609003644930789,
+        "first_stage_f": 9028.360587978981
+      },
+      "reference_2sls_hc0_standard_error": 0.08608475484761426
+    },
+    {
+      "stat_a": {
+        "n": 20000,
+        "y_sum": 3887.0,
+        "y_sum_squares": 3887.0,
+        "d_sum": 0.0,
+        "y_d_sum_product": 0.0,
+        "y_squared_d_sum_product": 0.0
+      },
+      "stat_b": {
+        "n": 20000,
+        "y_sum": 4411.0,
+        "y_sum_squares": 4411.0,
+        "d_sum": 4936.0,
+        "y_d_sum_product": 1777.0,
+        "y_squared_d_sum_product": 1777.0
+      },
+      "true_relative_lift": 0.2909090909090909,
+      "expected_relative": {
+        "point_estimate": 0.41819632881085433,
+        "standard_error": 0.08689145648955753,
+        "complier_control_mean": 0.25384927066450563
+      },
+      "reference_bootstrap_relative_standard_error": 0.08853439068257611,
+      "outcome_type": "binomial",
+      "name": "binary_outcome",
+      "note": "Conversion outcome; both statistics are proportions",
+      "true_cace": 0.08,
+      "expected": {
+        "point_estimate": 0.10615883306320908,
+        "standard_error": 0.016290132817325394,
+        "first_stage_f": 6553.372278279342
+      },
+      "reference_2sls_hc0_standard_error": 0.016290132817325383
+    },
+    {
+      "stat_a": {
+        "n": 3000,
+        "y_sum": 37953.65400438272,
+        "y_sum_squares": 517811.5305292589,
+        "d_sum": 881.0,
+        "y_d_sum_product": 13603.099846221457,
+        "y_squared_d_sum_product": 217650.8016402598
+      },
+      "stat_b": {
+        "n": 3000,
+        "y_sum": 37679.057393389216,
+        "y_sum_squares": 512163.0872209914,
+        "d_sum": 915.0,
+        "y_d_sum_product": 14055.778341826508,
+        "y_squared_d_sum_product": 224700.35987256715
+      },
+      "true_relative_lift": 0.15649452269170577,
+      "expected_relative": {
+        "point_estimate": -0.37756910487118556,
+        "standard_error": 0.4735991636058516,
+        "complier_control_mean": 21.390444311722607
+      },
+      "reference_bootstrap_relative_standard_error": null,
+      "outcome_type": "count",
+      "name": "weak_instrument",
+      "note": "Assignment barely moves take-up; expect WEAK_INSTRUMENT",
+      "true_cace": 2.0,
+      "expected": {
+        "point_estimate": -8.076370911573655,
+        "standard_error": 14.402866671720616,
+        "first_stage_f": 0.9187694423853626
+      },
+      "reference_2sls_hc0_standard_error": 14.401287641847167
+    }
+  ]
+}

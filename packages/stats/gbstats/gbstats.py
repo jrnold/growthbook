@@ -76,6 +76,7 @@ from gbstats.models.statistics import (
     QuantileStatistic,
     QuantileClusteredStatistic,
     RatioStatistic,
+    InstrumentalVariableStatistic,
     RegressionAdjustedRatioStatistic,
     RegressionAdjustedStatistic,
     SampleMeanStatistic,
@@ -95,6 +96,7 @@ SUM_COLS = [
     "denominator_sum",
     "denominator_sum_squares",
     "main_denominator_sum_product",
+    "main_squared_denominator_sum_product",
     "covariate_sum",
     "covariate_sum_squares",
     "main_covariate_sum_product",
@@ -109,6 +111,7 @@ SUM_COLS = [
     "denominator_sum_uncapped",
     "denominator_sum_squares_uncapped",
     "main_denominator_sum_product_uncapped",
+    "main_squared_denominator_sum_product_uncapped",
     "covariate_sum_uncapped",
     "covariate_sum_squares_uncapped",
     "main_covariate_sum_product_uncapped",
@@ -528,6 +531,7 @@ def test_post_strat_eligible(
     return analysis.post_stratification_enabled and metric.statistic_type not in [
         "quantile_event",
         "quantile_unit",
+        "iv",
     ]
 
 
@@ -832,6 +836,26 @@ def variation_statistic_from_metric_row(
                 row, prefix, "denominator", metric.denominator_metric_type
             ),
             m_d_sum_of_products=m_d_sum_of_products,
+            n=row[f"{prefix}_users"],
+        )
+    elif metric.statistic_type == "iv":
+        m_d_sum_of_products = row[f"{prefix}_main_denominator_sum_product"]
+        m_squared_d_sum: Optional[float] = float(
+            row[f"{prefix}_main_squared_denominator_sum_product"]
+        )
+        # Absent columns arrive as 0, which real data cannot produce unless
+        # the plain sum of products is 0 as well.
+        if m_squared_d_sum == 0 and m_d_sum_of_products != 0:
+            m_squared_d_sum = None
+        return InstrumentalVariableStatistic(
+            m_statistic=base_statistic_from_metric_row(
+                row, prefix, "main", metric.main_metric_type
+            ),
+            d_statistic=base_statistic_from_metric_row(
+                row, prefix, "denominator", metric.denominator_metric_type
+            ),
+            m_d_sum_of_products=m_d_sum_of_products,
+            m_squared_d_sum=m_squared_d_sum,
             n=row[f"{prefix}_users"],
         )
     elif metric.statistic_type == "mean":

@@ -215,6 +215,7 @@
                       "statistics/overview",
                       "statistics/details",
                       "statistics/quantile",
+                      "statistics/instrumental-variables",
                       "statistics/cuped",
                       "statistics/sequential",
                       "statistics/multiple-corrections",

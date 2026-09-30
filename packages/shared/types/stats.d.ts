@@ -158,6 +158,9 @@ type StatsEngineDimensionResponse =
 
 export type RealizedSettings = {
   postStratificationApplied: boolean;
+  // IV metrics only: the estimate is still reported, so surface this as a warning.
+  weakInstrument?: boolean;
+  firstStageF?: number | null;
 };
 
 export type ExperimentMetricAnalysis = {

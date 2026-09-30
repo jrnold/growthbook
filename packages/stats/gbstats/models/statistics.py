@@ -1,3 +1,4 @@
+import math
 from abc import ABC, abstractmethod
 from dataclasses import replace
 from typing import Optional, Union, List, Tuple
@@ -142,12 +143,88 @@ class RatioStatistic(Statistic):
     def __add__(self, other):
         if not isinstance(other, RatioStatistic):
             raise TypeError("Can add only another RatioStatistic instance")
-        return RatioStatistic(
+        return type(self)(
             n=self.n + other.n,
             m_statistic=self.m_statistic + other.m_statistic,
             d_statistic=self.d_statistic + other.d_statistic,
             m_d_sum_of_products=self.m_d_sum_of_products + other.m_d_sum_of_products,
         )
+
+
+# Same sufficient statistics as a ratio metric (m = outcome, d = take-up), but
+# the effect is a ratio of differences across arms, not a difference of ratios.
+@dataclass(frozen=True)
+class InstrumentalVariableStatistic(RatioStatistic):
+    # Sum of outcome^2 * take-up. Only needed for relative effects, and implied
+    # by m_d_sum_of_products when the outcome is binary.
+    m_squared_d_sum: Optional[float] = None
+
+    def __post_init__(self) -> None:
+        # Summed ProportionStatistics become SampleMeanStatistics, so check the
+        # data rather than the type.
+        d = self.d_statistic
+        if not _is_binary(d):
+            raise ValueError("IV take-up (d_statistic) must be binary")
+
+    @property
+    def _adopter_sum_squares(self) -> Optional[float]:
+        if _is_binary(self.m_statistic):
+            return self.m_d_sum_of_products
+        return self.m_squared_d_sum
+
+    @property
+    def has_adopter_split(self) -> bool:
+        return self._adopter_sum_squares is not None
+
+    def _split_statistic(
+        self, sum: float, sum_squares: float
+    ) -> Union[SampleMeanStatistic, ProportionStatistic]:
+        if isinstance(self.m_statistic, ProportionStatistic):
+            return ProportionStatistic(n=self.n, sum=sum)
+        return SampleMeanStatistic(n=self.n, sum=sum, sum_squares=sum_squares)
+
+    # outcome * take-up and outcome * (1 - take-up), each over all assigned units
+    @property
+    def adopter_outcome(self) -> Union[SampleMeanStatistic, ProportionStatistic]:
+        sum_squares = self._adopter_sum_squares
+        if sum_squares is None:
+            raise ValueError("m_squared_d_sum is required for a non-binary outcome")
+        return self._split_statistic(self.m_d_sum_of_products, sum_squares)
+
+    @property
+    def non_adopter_outcome(self) -> Union[SampleMeanStatistic, ProportionStatistic]:
+        sum_squares = self._adopter_sum_squares
+        if sum_squares is None:
+            raise ValueError("m_squared_d_sum is required for a non-binary outcome")
+        return self._split_statistic(
+            self.m_statistic.sum - self.m_d_sum_of_products,
+            self.m_statistic.sum_squares - sum_squares,
+        )
+
+    @property
+    def split_covariance(self) -> float:
+        # adopter and non-adopter outcomes are never both non-zero for a unit
+        return compute_covariance(
+            n=self.n,
+            stat_a=self.adopter_outcome,
+            stat_b=self.non_adopter_outcome,
+            sum_of_products=0,
+        )
+
+    def __add__(self, other):
+        if not isinstance(other, InstrumentalVariableStatistic):
+            raise TypeError("Can add only another InstrumentalVariableStatistic")
+        summed = super().__add__(other)
+        m_squared_d_sum = (
+            None
+            if self.m_squared_d_sum is None or other.m_squared_d_sum is None
+            else self.m_squared_d_sum + other.m_squared_d_sum
+        )
+        return replace(summed, m_squared_d_sum=m_squared_d_sum)
+
+
+def _is_binary(stat: Union[SampleMeanStatistic, ProportionStatistic]) -> bool:
+    return math.isclose(stat.sum_squares, stat.sum, rel_tol=1e-9, abs_tol=1e-9)
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,136 @@
+---
+title: Instrumental Variables
+description: How GrowthBook instrumental variables metrics estimate the effect of using a feature, not only the effect of being offered it, when some users never take it up.
+sidebarTitle: Instrumental Variables
+---
+
+An instrumental variables (IV) metric estimates the effect of **using** a feature for the users who used it because your experiment offered it. A standard A/B test result measures the effect of being **assigned** to a variation. When a variation offers something optional, such as a new feature, a message, or a promotion, only some users take it up, and the standard result averages over everyone who was offered it.
+
+<Note>
+IV metrics are [Fact Metrics](/app/metrics). They aren't available for legacy metrics.
+</Note>
+
+The users who take up the feature because they were offered it are called **compliers**. The IV estimate is the average effect for compliers, known as the complier average causal effect.
+
+For example, suppose you test a "saved carts" button. After two weeks, revenue per user is \$0.30 higher in treatment, and 20% of treatment users saved a cart at least once. Users in control can't save carts. The 80% of treatment users who never used the button contributed nothing to the \$0.30 difference. The IV estimate divides the effect on revenue by the effect on take-up: \$0.30 / 0.20 = \$1.50 per user who saved a cart.
+
+Both numbers are correct. They answer different questions.
+
+| Question                                          | Result                                |
+| ------------------------------------------------- | ------------------------------------- |
+| Should we ship the button to everyone?            | \$0.30 per user offered the button    |
+| Is saving a cart valuable to the users who do it? | \$1.50 per user who saves a cart (IV) |
+
+The method is called instrumental variables because random assignment acts as an "instrument." Assignment changes take-up, and it's unrelated to anything else about the user.
+
+## When to use an IV metric
+
+### Separate adoption from value
+
+Total impact is the take-up rate multiplied by the effect per user who takes the feature up. A feature with a large IV effect and low take-up has a discovery problem. A feature with high take-up and a small IV effect has a product problem. The standard result can't tell these apart.
+
+### Measure a message that many users never open
+
+Your treatment might be an email, a push notification, or an in-app announcement. Assignment is sending the message, and take-up is opening it. The standard result mixes how persuasive the message is with how many users opened it.
+
+### Measure a feature you can't withhold
+
+The feature may already be launched, tied to a marketing campaign, or social. You can still randomize an encouragement to use it, such as a banner or tooltip. The IV metric then estimates the effect of the feature for the users the encouragement moved. Both variations have some take-up, and the IV estimate divides by the **difference** in take-up between them.
+
+## When to use an Activation Metric instead
+
+Use an [Activation Metric](/app/experiment-configuration#analysis-settings) if you can identify, in **every** variation, the users who reached the part of the product your experiment changed. For example, if your experiment changes the checkout page, you can identify users who viewed the checkout page in both control and treatment. An Activation Metric filters the analysis to those users. It's simpler than an IV metric and much more precise.
+
+An Activation Metric is only valid when activation is independent of experiment assignment. Take-up of an optional feature is the opposite case: the treatment exists to change it, and users in control may have no way to take it up. Filtering to users who took up the feature would compare different kinds of users across variations. Use an IV metric when the experiment affects who takes up the feature.
+
+## How IV metrics differ from ratio metrics
+
+An IV metric is built from the same two pieces as a [ratio metric](/app/metrics#ratio-metrics): an outcome and a second quantity, measured on the same users. The two metric types combine them differently, and they can disagree.
+
+Suppose revenue per user rises from \$10 in control to \$11 in treatment, and the share of users who use a feature rises from 20% to 40%.
+
+- A ratio metric of revenue per feature user falls from \$50 to \$27.50, a 45% decrease. This is an accurate description: the users who newly adopted the feature spend less than the early adopters did.
+- The IV metric is (\$11 − \$10) / (0.40 − 0.20) = +\$5 per complier. The feature increased revenue for the users it newly reached.
+
+When a treatment changes **who** is counted in a ratio metric's denominator, the ratio reflects the change in the mix of users as well as any change in behavior. An IV metric is designed for that situation. A ratio metric is still the right choice when the denominator is a unit of activity, such as sessions or orders, that the experiment isn't trying to change.
+
+## Assumptions
+
+Random assignment guarantees that the standard A/B test result is unbiased. An IV estimate needs three more assumptions:
+
+1. **Assignment affects the outcome only through take-up.** Users who don't take up the feature must be unaffected by being offered it. This is the assumption to think hardest about, and the data can't confirm it. A banner that says "save 20% with saved carts" can change the behavior of users who never save a cart. Plain, unobtrusive encouragements are safer than persuasive ones.
+2. **Assignment pushes every user's take-up in the same direction.** No user is less likely to take up the feature because of an assignment that makes other users more likely to. This is usually reasonable for a new button and less obviously so for an intrusive notification.
+3. **Assignment changes take-up by a meaningful amount.** GrowthBook checks this for you. See [the weak instrument warning](#the-weak-instrument-warning).
+
+## Create an IV metric
+
+1. Go to your [Fact Table](/app/metrics#fact-tables) and click **Add Metric**.
+2. Under **Type of Metric**, select **Instrumental Variables**.
+3. Define the **outcome** the same way you would define the numerator of a ratio metric. For example, `SUM(revenue)` from an `Orders` Fact Table. The outcome can be a count, a sum, or a yes-or-no conversion.
+4. Define **take-up**, the event that means a user used the feature. For example, rows in a `Saved Carts` Fact Table. GrowthBook always counts take-up as whether each user has at least one matching row.
+5. Set the [metric window](/app/metrics#metric-windows) as you would for a mean metric.
+6. Click **Save**. The metric appears in the Fact Table's metric list.
+
+Add the metric to your experiment as a goal, secondary, or guardrail metric. We recommend also adding the outcome on its own, as a mean or proportion metric, so the standard result appears next to the IV result.
+
+## Interpret IV results
+
+Suppose the outcome is revenue, take-up is "saved a cart," and the IV effect is \$1.50 with a 95% confidence interval of (\$0.40, \$2.60).
+
+The estimate says that, for users who save a cart when offered the button and wouldn't otherwise, saving carts raised revenue by \$1.50 each on average. The interval is the range of effects consistent with the data at the 95% level. Read it as you would any other [frequentist confidence interval](/statistics/details#frequentist-engine).
+
+Keep three points in mind when reading IV results:
+
+- **The estimate describes compliers, not all users.** It says nothing about users who wouldn't use the feature even when offered it. If you change how the feature is offered, you may recruit different users, and the effect for them may differ.
+- **Intervals are wider than for the standard result.** The uncertainty is divided by the difference in take-up. With 20% take-up, the interval is roughly five times as wide as the standard result's. IV metrics need more users, or higher take-up, to reach the same precision.
+- **Relative effects use the compliers' own baseline.** A relative IV effect of +12% means compliers' revenue was 12% higher than it would have been without the feature. GrowthBook estimates what compliers would have earned without the feature. It doesn't use the control variation's average, because control also contains users who would never take up the feature.
+
+Base your ship decision on the standard result for the same outcome, which measures what happens when you launch. The IV metric explains where that result comes from.
+
+## The weak instrument warning
+
+GrowthBook shows a weak instrument warning when the difference in take-up between variations is too small to support a reliable IV estimate. The estimate divides by that difference, so when the difference is small relative to its uncertainty, the estimate is more than noisy. It can be badly biased, and its interval can exclude the true effect far more often than it should. In a simulated experiment with a true effect of +2.0 and take-up of 30% in control against 31% in treatment, the IV estimate was −8.1.
+
+GrowthBook measures the strength of the instrument with the first-stage F statistic, which compares the difference in take-up with its uncertainty. When F is below 10, the result shows the warning. The estimate is still displayed, but don't act on it.
+
+To resolve the warning, collect more users, or increase take-up in treatment by making the feature easier to find.
+
+## How GrowthBook calculates IV results
+
+GrowthBook uses the Wald estimator: the difference in the outcome between variations divided by the difference in take-up. With a single randomized experiment as the instrument, this is identical to two-stage least squares. Uncertainty comes from the delta method, using the covariance between outcome and take-up within each variation. GrowthBook compares each treatment variation with the baseline separately.
+
+See [technical instrumental variables details](/statistics/instrumental-variables-technical) for the estimators, their variances, and the weak instrument statistic.
+
+## FAQ
+
+### Are IV metrics available with the Bayesian engine?
+
+Yes. GrowthBook puts a prior on the IV effect and combines it with the effect estimate to get a posterior distribution, so **Chance to Win** and the other Bayesian results are available.
+
+### Do IV metrics work with CUPED, multiple testing corrections, and sequential testing?
+
+Partly. [Sequential testing](/statistics/sequential) and [multiple testing corrections](/statistics/multiple-corrections) work with IV metrics. [CUPED and post-stratification](/statistics/cuped) don't.
+
+### Can take-up be a count, such as the number of sessions that used the feature?
+
+No. Take-up must be yes or no for each user. With a count there's no well-defined group of compliers, and the estimate would need a different interpretation.
+
+### What if users in control can also use the feature?
+
+That's supported. GrowthBook divides by the difference in take-up between variations, and the estimate describes users whose take-up was changed by assignment. Users who would take up the feature in either variation are in both, so they cancel out of the estimate.
+
+### What if treatment lowers take-up?
+
+The estimate is still valid as long as assignment pushes every user in the same direction. A large decrease in take-up identifies the effect as well as a large increase does.
+
+### Why is there an error and no result?
+
+GrowthBook returns an error when take-up is exactly equal across variations, because the estimate is undefined. For relative effects, it also returns an error when the estimated baseline for compliers is zero.
+
+### Can I use the IV result if my experiment has a Sample Ratio Mismatch (SRM)?
+
+No. An IV estimate relies on random assignment even more than the standard result does. Resolve the [SRM](/app/experiment-results#experiment-balance-srm) first. A difference in take-up between variations isn't an SRM. It's what the IV metric uses.
+
+### Can I compare users who used the feature with users who didn't?
+
+No. That comparison isn't an experiment, even inside one. Users choose whether to take up a feature, and the users who do differ from the users who don't in ways that also drive the outcome. An IV metric avoids this comparison entirely.
