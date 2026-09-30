@@ -1,0 +1,202 @@
+---
+title: Instrumental Variables Technical Details
+description: How GrowthBook estimates complier effects with the Wald instrumental variables estimator, including variances, the weak-instrument check, and relative effects.
+sidebarTitle: Instrumental Variables Technical
+unlisted: true
+---
+
+import { ExternalLink } from "/snippets/ExternalLink.jsx";
+
+This page documents how GrowthBook computes instrumental variables (IV) estimates and their variances. It covers notation and the target parameter, then [absolute effects](#absolute-case), the [weak instrument check](#weak-instrument-check), and [relative effects](#relative-case). For when to use IV metrics and how to read them, see [instrumental variables](/statistics/instrumental-variables).
+
+An IV metric has two parts: an outcome and a take-up indicator. It reuses the structure of a [ratio metric](/statistics/details#ratio-metrics), with the outcome in the numerator and take-up in the denominator, but it combines them differently. A ratio metric is a difference of ratios across variations. The IV estimator is a ratio of differences.
+
+## Notation
+
+This page uses revenue as the outcome and use of a new feature as take-up. Any mean or proportion metric can be the outcome.
+
+1. Define $Z_i \in \{C, T\}$ as the variation that user $i$ is randomly assigned to. Assignment is the instrument.
+2. Define $D_i \in \{0, 1\}$ as take-up: whether user $i$ used the feature.
+3. Define $Y_i$ as the observed revenue for user $i$.
+4. Define $\bar{Y}_{C}$ $\left(\bar{Y}_{T}\right)$ and $\bar{D}_{C}$ $\left(\bar{D}_{T}\right)$ as the sample means of revenue and take-up over **all** users assigned to control (treatment), including users with $D_i = 0$.
+5. Define $\hat\sigma^{2}_{Y,C}$, $\hat\sigma^{2}_{D,C}$, and $\hat\sigma_{YD,C}$ as the sample variance of revenue, the sample variance of take-up, and their sample covariance in control, and similarly for treatment.
+6. Define $n_{C}$ $\left(n_{T}\right)$ as the number of users assigned to control (treatment).
+
+Let $D_i(z)$ be the take-up user $i$ would choose if assigned to variation $z$. Following [Angrist, Imbens, and Rubin (1996)<ExternalLink />](https://doi.org/10.1080/01621459.1996.10476902), users are **compliers** if $D_i(C) = 0$ and $D_i(T) = 1$, **always-takers** if $D_i(C) = D_i(T) = 1$, and **never-takers** if $D_i(C) = D_i(T) = 0$. Denote the population share of compliers by $\pi_c$.
+
+## Assumptions
+
+Random assignment alone identifies the effect of assignment. Identifying the effect of take-up needs three more assumptions:
+
+1. **Exclusion.** Assignment affects revenue only through take-up. In particular, always-takers and never-takers have the same revenue in either variation.
+2. **Monotonicity.** Assignment moves every user's take-up in the same direction. The derivation below assumes it never lowers take-up, i.e., there are no users with $D_i(C) = 1$ and $D_i(T) = 0$. The reverse case, where assignment never raises take-up, is symmetric.
+3. **Relevance.** Assignment changes take-up, i.e., $\pi_c > 0$.
+
+## Absolute case
+
+Define the effects of assignment on revenue and on take-up as
+
+$$
+\begin{align}
+\Delta_{Y} &= E\left[Y \mid Z = T\right] - E\left[Y \mid Z = C\right] \tag{1} \\
+\Delta_{D} &= E\left[D \mid Z = T\right] - E\left[D \mid Z = C\right]. \tag{2}
+\end{align}
+$$
+
+Under monotonicity, only compliers change take-up, so $\Delta_{D} = \pi_c$. Under exclusion, only compliers contribute to $\Delta_{Y}$, so $\Delta_{Y} = \pi_c \left(\mu_{c1} - \mu_{c0}\right)$, where $\mu_{c1}$ $\left(\mu_{c0}\right)$ is the population mean revenue of compliers with (without) the feature. The target parameter is the complier average causal effect
+
+$$
+\begin{align}
+\Delta_{a} &= \mu_{c1} - \mu_{c0} = \frac{\Delta_{Y}}{\Delta_{D}}. \tag{3}
+\end{align}
+$$
+
+GrowthBook replaces each term with its sample counterpart. This is the Wald estimator, and with a single binary instrument and no covariates it is identical to two-stage least squares:
+
+$$
+\begin{align}
+\hat\Delta_{a} &= \frac{\hat\Delta_{Y}}{\hat\Delta_{D}} = \frac{\bar{Y}_{T} - \bar{Y}_{C}}{\bar{D}_{T} - \bar{D}_{C}}. \tag{4}
+\end{align}
+$$
+
+If users in control cannot access the feature, then $\bar{D}_{C} = 0$ and equation (4) reduces to the difference in mean revenue divided by the take-up rate in treatment.
+
+### Variance of the absolute effect
+
+Variations are statistically independent, so the variances and covariance of the two differences are sums across variations:
+
+$$
+\begin{align}
+\hat{V}_{Y} &= \frac{\hat\sigma^{2}_{Y,C}}{n_C} + \frac{\hat\sigma^{2}_{Y,T}}{n_T} \tag{5} \\
+\hat{V}_{D} &= \frac{\hat\sigma^{2}_{D,C}}{n_C} + \frac{\hat\sigma^{2}_{D,T}}{n_T} \tag{6} \\
+\hat{C}_{YD} &= \frac{\hat\sigma_{YD,C}}{n_C} + \frac{\hat\sigma_{YD,T}}{n_T}. \tag{7}
+\end{align}
+$$
+
+Unlike the relative lift of a mean metric, the covariance in equation (7) isn't zero, because revenue and take-up are measured on the same users.
+
+GrowthBook then applies the delta method to $g(y, d) = y / d$, whose gradient is $\nabla g = \left(1/d, \; -y/d^{2}\right)$. Evaluating $\nabla g^{\top} \Sigma \nabla g$ at the sample values gives
+
+$$
+\begin{align}
+\hat\sigma^{2}_{\Delta_a} &= \frac{\hat{V}_{Y}}{\hat\Delta^{2}_{D}} + \frac{\hat\Delta^{2}_{Y}\hat{V}_{D}}{\hat\Delta^{4}_{D}} - \frac{2 \hat\Delta_{Y} \hat{C}_{YD}}{\hat\Delta^{3}_{D}} \tag{8} \\
+&= \frac{1}{\hat\Delta^{2}_{D}}\left(\hat{V}_{Y} - 2\hat\Delta_{a}\hat{C}_{YD} + \hat\Delta^{2}_{a}\hat{V}_{D}\right). \tag{9}
+\end{align}
+$$
+
+Equation (9) shows why IV estimates are less precise than the effect of assignment: the variance is scaled by $1/\hat\Delta^{2}_{D}$. With 20% take-up, the standard error of $\hat\Delta_a$ is roughly five times the standard error of $\hat\Delta_Y$.
+
+### Estimating the variances and covariance
+
+Take-up is binary, so $\hat\sigma^{2}_{D,C}$ uses the [proportion metric](/statistics/details#proportion-metrics) formula, $\bar{D}_{C}\left(1 - \bar{D}_{C}\right)$. The variance of revenue uses the [mean metric](/statistics/details#mean-metrics) or proportion metric formula, depending on the outcome. For the covariance, GrowthBook uses
+
+$$
+\begin{align}
+\hat\sigma_{YD,C} &= \frac{1}{n_C - 1}\left(\sum^{n_C}_{i=1} Y_i D_i - \frac{\sum^{n_C}_{i=1} Y_i \sum^{n_C}_{i=1} D_i}{n_C}\right) \tag{10}
+\end{align}
+$$
+
+when the outcome is a mean metric, and
+
+$$
+\begin{align}
+\hat\sigma_{YD,C} &= \frac{\sum^{n_C}_{i=1} Y_i D_i}{n_C} - \bar{Y}_{C}\bar{D}_{C} \tag{11}
+\end{align}
+$$
+
+when the outcome is a proportion metric. Every term is a sum over users that a ratio metric query already returns for each variation: $\sum Y_i$, $\sum Y^2_i$, $\sum D_i$, and $\sum Y_i D_i$.
+
+## Weak instrument check
+
+The delta method in equation (8) linearizes $y/d$ around $\Delta_D$. That approximation is accurate only when $\hat\Delta_D$ is far from zero relative to its sampling error. When it isn't, $\hat\Delta_a$ is biased and its confidence interval is unreliable, not merely wide. GrowthBook computes the first-stage statistic
+
+$$
+\begin{align}
+F &= \frac{\hat\Delta^{2}_{D}}{\hat{V}_{D}} \tag{12}
+\end{align}
+$$
+
+GrowthBook flags the result as having a weak instrument when $F < 10$, following the rule of thumb in [Staiger and Stock (1997)<ExternalLink />](https://doi.org/10.2307/2171753). The estimate and its interval are still reported with a warning on the metric, the same way a suspicious change is flagged and not hidden. Treat a flagged result as unreliable: its interval can exclude the true effect far more often than its nominal level suggests. GrowthBook returns an error only when $\hat\Delta_D = 0$ exactly, where equation (4) is undefined.
+
+The check is two-sided: a large decrease in take-up identifies the effect as well as a large increase does. When $\hat{V}_{D} = 0$, which happens under full compliance ($\bar{D}_{C} = 0$ and $\bar{D}_{T} = 1$), the result is not flagged as long as $\hat\Delta_D \neq 0$. In that case equations (4) and (9) reduce to the usual difference in means and its variance.
+
+## Relative case
+
+For relative effects, the target parameter is the complier average causal effect relative to the mean revenue of compliers without the feature:
+
+$$
+\begin{align}
+\Delta_{r} &= \frac{\mu_{c1} - \mu_{c0}}{\left|\mu_{c0}\right|}. \tag{13}
+\end{align}
+$$
+
+GrowthBook doesn't divide by $\bar{Y}_{C}$. The control variation contains never-takers as well as compliers, so its mean is not the compliers' baseline.
+
+To estimate $\mu_{c0}$, split each user's revenue into the part earned with the feature and the part earned without it:
+
+$$
+\begin{align}
+V_i &= Y_i D_i & W_i &= Y_i \left(1 - D_i\right). \tag{14}
+\end{align}
+$$
+
+Users with $D_i = 0$ in control are compliers and never-takers. Users with $D_i = 0$ in treatment are never-takers only. By exclusion, never-takers have the same revenue in both variations, so their contributions cancel and $E\left[W \mid Z=C\right] - E\left[W \mid Z=T\right] = \pi_c \mu_{c0}$. The same argument applied to $V$, where always-takers cancel, gives $E\left[V \mid Z=T\right] - E\left[V \mid Z=C\right] = \pi_c \mu_{c1}$. Writing $\Delta_V$ and $\Delta_W$ for the treatment minus control differences,
+
+$$
+\begin{align}
+\mu_{c1} &= \frac{\Delta_{V}}{\Delta_{D}} & \mu_{c0} &= -\frac{\Delta_{W}}{\Delta_{D}}. \tag{15}
+\end{align}
+$$
+
+The take-up difference cancels from their ratio, so the estimate is
+
+$$
+\begin{align}
+\hat\Delta_{r} &= \left(-\frac{\hat\Delta_{V}}{\hat\Delta_{W}} - 1\right) \text{sign}\left(\hat\mu_{c0}\right), \tag{16}
+\end{align}
+$$
+
+where $\hat\Delta_{V} = \bar{V}_{T} - \bar{V}_{C}$ and $\hat\Delta_{W} = \bar{W}_{T} - \bar{W}_{C}$. Equation (16) equals $\hat\Delta_{a} / \left|\hat\mu_{c0}\right|$.
+
+### Variance of the relative effect
+
+Define $\hat{V}_{V}$, $\hat{V}_{W}$, and $\hat{C}_{VW}$ as in equations (5) to (7), with $V$ and $W$ in place of $Y$ and $D$. Applying the delta method to $-\Delta_V / \Delta_W$ gives
+
+$$
+\begin{align}
+\hat\sigma^{2}_{\Delta_r} &= \frac{\hat{V}_{V}}{\hat\Delta^{2}_{W}} + \frac{\hat\Delta^{2}_{V}\hat{V}_{W}}{\hat\Delta^{4}_{W}} - \frac{2 \hat\Delta_{V} \hat{C}_{VW}}{\hat\Delta^{3}_{W}}. \tag{17}
+\end{align}
+$$
+
+No user has both $V_i$ and $W_i$ different from zero, so $\sum V_i W_i = 0$ and the covariance within a variation depends only on the two means. For a mean metric outcome,
+
+$$
+\begin{align}
+\hat\sigma_{VW,C} &= -\frac{n_C}{n_C - 1}\bar{V}_{C}\bar{W}_{C}, \tag{18}
+\end{align}
+$$
+
+and for a proportion metric outcome the factor $n_C / \left(n_C - 1\right)$ is omitted.
+
+The variances of $V$ and $W$ need one sum beyond those used in the absolute case, $\sum Y^2_i D_i$:
+
+$$
+\begin{align}
+\hat\sigma^{2}_{V,C} &= \frac{1}{n_C - 1}\left(\sum^{n_C}_{i=1} Y^2_i D_i - \frac{\left(\sum^{n_C}_{i=1} Y_i D_i\right)^2}{n_C}\right) \tag{19} \\
+\hat\sigma^{2}_{W,C} &= \frac{1}{n_C - 1}\left(\sum^{n_C}_{i=1} Y^2_i \left(1 - D_i\right) - \frac{\left(\sum^{n_C}_{i=1} Y_i \left(1 - D_i\right)\right)^2}{n_C}\right). \tag{20}
+\end{align}
+$$
+
+When the outcome is a proportion metric, $Y^2_i D_i = Y_i D_i$, so no additional sum is needed and $V$ and $W$ use the proportion metric variance formula.
+
+The weak instrument check in equation (12) applies to relative effects as well, since $\Delta_W = -\pi_c \mu_{c0}$ is close to zero whenever $\Delta_D$ is. GrowthBook returns an error when $\hat\Delta_{W} = 0$.
+
+## Inference
+
+$\hat\Delta_{a}$ and $\hat\Delta_{r}$ are asymptotically normal. GrowthBook passes them and their variances from equations (9) and (17) to the [Bayesian and frequentist engines](/statistics/details) in place of the usual lift estimates, so credible intervals, confidence intervals, p-values, and sequential testing work as they do for other metrics.
+
+## References
+
+- [Angrist, Imbens, and Rubin (1996)<ExternalLink />](https://doi.org/10.1080/01621459.1996.10476902). Identification of causal effects using instrumental variables. _Journal of the American Statistical Association_, 91(434), 444–455.
+- [Imbens and Angrist (1994)<ExternalLink />](https://doi.org/10.2307/2951620). Identification and estimation of local average treatment effects. _Econometrica_, 62(2), 467–475.
+- [Staiger and Stock (1997)<ExternalLink />](https://doi.org/10.2307/2171753). Instrumental variables regression with weak instruments. _Econometrica_, 65(3), 557–586.

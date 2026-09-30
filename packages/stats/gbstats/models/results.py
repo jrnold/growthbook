@@ -12,6 +12,8 @@ class EffectMomentsResult:
     pairwise_sample_size: int
     error_message: Optional[str]
     post_stratification_applied: bool
+    weak_instrument: bool = False
+    first_stage_f: Optional[float] = None
 
 
 @dataclass
@@ -58,6 +60,8 @@ class PValueResult:
 @dataclass
 class RealizedSettings:
     postStratificationApplied: bool
+    weakInstrument: bool = False
+    firstStageF: Optional[float] = None
 
 
 @dataclass

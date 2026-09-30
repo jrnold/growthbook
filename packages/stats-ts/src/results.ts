@@ -40,6 +40,8 @@ export interface PValueResult {
 
 export interface RealizedSettings {
   postStratificationApplied: boolean;
+  weakInstrument?: boolean;
+  firstStageF?: number | null;
 }
 
 export interface SingleVariationResult {

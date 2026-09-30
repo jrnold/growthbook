@@ -12,6 +12,8 @@ from gbstats.utils import multinomial_covariance
 from gbstats.messages import (
     ZERO_NEGATIVE_VARIANCE_MESSAGE,
     BASELINE_VARIATION_ZERO_MESSAGE,
+    IV_NO_TAKE_UP_DIFFERENCE_MESSAGE,
+    IV_RELATIVE_MISSING_STATISTIC_MESSAGE,
 )
 
 from gbstats.models.statistics import (
@@ -20,6 +22,7 @@ from gbstats.models.statistics import (
     RegressionAdjustedStatistic,
     RegressionAdjustedRatioStatistic,
     RatioStatistic,
+    InstrumentalVariableStatistic,
     ScaledImpactStatistic,
     SummableStatistic,
     TestStatistic,
@@ -30,6 +33,7 @@ from gbstats.utils import (
     isinstance_union,
     frequentist_diff,
     frequentist_variance,
+    variance_of_ratios,
     invert_symmetric_matrix,
 )
 
@@ -212,6 +216,187 @@ class EffectMoments:
         )
 
 
+IV_MIN_FIRST_STAGE_F = 10.0
+
+
+def iv_variance(
+    delta_y: float,
+    delta_d: float,
+    var_delta_y: float,
+    var_delta_d: float,
+    cov_delta_y_d: float,
+) -> float:
+    """Delta-method variance of the Wald estimator delta_y / delta_d.
+
+    Inputs are the across-arm differences in outcome and take-up means, the
+    variances of those differences, and their covariance.
+    """
+    # Same delta method as relative lift, but the covariance is non-zero
+    # because outcome and take-up are measured on the same units.
+    return variance_of_ratios(delta_y, var_delta_y, delta_d, var_delta_d, cov_delta_y_d)
+
+
+def iv_weak_instrument(delta_d: float, var_delta_d: float) -> bool:
+    """Whether assignment moved take-up too little for the delta method to hold."""
+    if var_delta_d <= 0:
+        # no sampling noise in take-up: weak only if the arms are identical
+        return delta_d == 0
+    # Two-sided on purpose: a large drop in take-up identifies the effect as
+    # well as a large rise does.
+    return delta_d**2 / var_delta_d < IV_MIN_FIRST_STAGE_F
+
+
+class EffectMomentsIV:
+    def __init__(
+        self,
+        stats: List[Tuple[TestStatistic, TestStatistic]],
+        config: EffectMomentsConfig = EffectMomentsConfig(),
+    ):
+        stat_a, stat_b = sum_stats(stats)
+        if not isinstance(stat_a, InstrumentalVariableStatistic) or not isinstance(
+            stat_b, InstrumentalVariableStatistic
+        ):
+            raise TypeError("EffectMomentsIV requires InstrumentalVariableStatistic")
+        self.stat_a = stat_a
+        self.stat_b = stat_b
+        self.relative = config.difference_type == "relative"
+
+    def _default_output(
+        self, error_message: Optional[str] = None
+    ) -> EffectMomentsResult:
+        return EffectMomentsResult(
+            point_estimate=0,
+            standard_error=0,
+            pairwise_sample_size=0,
+            error_message=error_message,
+            post_stratification_applied=False,
+        )
+
+    # Means are over every assigned unit, so these are the two ITT effects.
+    @property
+    def delta_y(self) -> float:
+        return self.stat_b.m_statistic.mean - self.stat_a.m_statistic.mean
+
+    @property
+    def delta_d(self) -> float:
+        return self.stat_b.d_statistic.mean - self.stat_a.d_statistic.mean
+
+    @property
+    def var_delta_y(self) -> float:
+        return (
+            self.stat_a.m_statistic.variance / self.stat_a.n
+            + self.stat_b.m_statistic.variance / self.stat_b.n
+        )
+
+    @property
+    def var_delta_d(self) -> float:
+        return (
+            self.stat_a.d_statistic.variance / self.stat_a.n
+            + self.stat_b.d_statistic.variance / self.stat_b.n
+        )
+
+    @property
+    def cov_delta_y_d(self) -> float:
+        return (
+            self.stat_a.covariance / self.stat_a.n
+            + self.stat_b.covariance / self.stat_b.n
+        )
+
+    # Relative effects use the complier control mean as the baseline. With
+    # v = outcome * take_up and w = outcome * (1 - take_up), the complier means
+    # are delta_v / delta_d (treated) and -delta_w / delta_d (control).
+    @property
+    def delta_v(self) -> float:
+        return self.stat_b.adopter_outcome.mean - self.stat_a.adopter_outcome.mean
+
+    @property
+    def delta_w(self) -> float:
+        return (
+            self.stat_b.non_adopter_outcome.mean - self.stat_a.non_adopter_outcome.mean
+        )
+
+    @property
+    def var_delta_v(self) -> float:
+        return (
+            self.stat_a.adopter_outcome.variance / self.stat_a.n
+            + self.stat_b.adopter_outcome.variance / self.stat_b.n
+        )
+
+    @property
+    def var_delta_w(self) -> float:
+        return (
+            self.stat_a.non_adopter_outcome.variance / self.stat_a.n
+            + self.stat_b.non_adopter_outcome.variance / self.stat_b.n
+        )
+
+    @property
+    def cov_delta_v_w(self) -> float:
+        return (
+            self.stat_a.split_covariance / self.stat_a.n
+            + self.stat_b.split_covariance / self.stat_b.n
+        )
+
+    @property
+    def first_stage_f(self) -> Optional[float]:
+        if self.var_delta_d <= 0:
+            return None
+        return self.delta_d**2 / self.var_delta_d
+
+    @property
+    def complier_control_mean(self) -> float:
+        return -self.delta_w / self.delta_d
+
+    @property
+    def point_estimate(self) -> float:
+        if self.relative:
+            # (treated - control) / |control|; delta_d cancels from the ratio
+            ratio_of_means = -self.delta_v / self.delta_w
+            return (ratio_of_means - 1) * np.sign(self.complier_control_mean)
+        return self.delta_y / self.delta_d
+
+    @property
+    def variance(self) -> float:
+        if self.relative:
+            return variance_of_ratios(
+                self.delta_v,
+                self.var_delta_v,
+                self.delta_w,
+                self.var_delta_w,
+                self.cov_delta_v_w,
+            )
+        return iv_variance(
+            self.delta_y,
+            self.delta_d,
+            self.var_delta_y,
+            self.var_delta_d,
+            self.cov_delta_y_d,
+        )
+
+    def compute_result(self) -> EffectMomentsResult:
+        if self.stat_a.n <= 1 or self.stat_b.n <= 1 or self.var_delta_y <= 0:
+            return self._default_output(ZERO_NEGATIVE_VARIANCE_MESSAGE)
+        if self.delta_d == 0:
+            return self._default_output(IV_NO_TAKE_UP_DIFFERENCE_MESSAGE)
+        if self.relative:
+            if not (self.stat_a.has_adopter_split and self.stat_b.has_adopter_split):
+                return self._default_output(IV_RELATIVE_MISSING_STATISTIC_MESSAGE)
+            if self.delta_w == 0:
+                return self._default_output(BASELINE_VARIATION_ZERO_MESSAGE)
+        if self.variance <= 0:
+            return self._default_output(ZERO_NEGATIVE_VARIANCE_MESSAGE)
+        return EffectMomentsResult(
+            point_estimate=float(self.point_estimate),
+            standard_error=np.sqrt(self.variance),
+            pairwise_sample_size=self.stat_a.n + self.stat_b.n,
+            error_message=None,
+            post_stratification_applied=False,
+            # Reported, not suppressed: the estimate is biased and its interval
+            # unreliable, so callers must surface this alongside the result.
+            weak_instrument=iv_weak_instrument(self.delta_d, self.var_delta_d),
+            first_stage_f=self.first_stage_f,
+        )
+
+
 def sum_stats(
     stats: Union[
         List[Tuple[TestStatistic, TestStatistic]],
@@ -254,12 +439,20 @@ class BaseABTest(ABC):
         self.moments_result = self.compute_moments_result()
         self.realized_settings = RealizedSettings(
             postStratificationApplied=self.moments_result.post_stratification_applied,
+            weakInstrument=self.moments_result.weak_instrument,
+            firstStageF=self.moments_result.first_stage_f,
         )
 
     def compute_moments_result(self) -> EffectMomentsResult:
         moments_config = EffectMomentsConfig(
             difference_type="relative" if self.relative else "absolute"
         )
+        if isinstance(self.stat_a, InstrumentalVariableStatistic) and isinstance(
+            self.stat_b, InstrumentalVariableStatistic
+        ):
+            return EffectMomentsIV(
+                [(self.stat_a, self.stat_b)], moments_config
+            ).compute_result()
         if self.config.post_stratify:
             summable_stats: List[Tuple[SummableStatistic, SummableStatistic]] = []
             for stat_a, stat_b in self.stats:
