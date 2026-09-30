@@ -1,6 +1,6 @@
 # Docs (Mintlify MDX)
 
-Read this before adding or editing pages under `docs/`.
+Read this before adding or editing pages under `docs/`. For voice, terminology, page structure, and formatting conventions, read `docs-style.md` in this folder.
 
 ## Quote YAML values that contain a colon
 
