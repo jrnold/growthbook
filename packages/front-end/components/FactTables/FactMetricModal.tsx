@@ -70,6 +70,7 @@ import { MetricDelaySettings } from "@/components/Metrics/MetricForm/MetricDelay
 import { MetricPriorSettingsForm } from "@/components/Metrics/MetricForm/MetricPriorSettingsForm";
 import Checkbox from "@/ui/Checkbox";
 import Callout from "@/ui/Callout";
+import EmpiricalMaxPercentChange from "@/components/FactTables/EmpiricalMaxPercentChange";
 import Code from "@/components/SyntaxHighlighting/Code";
 import HelperText from "@/ui/HelperText";
 import PaidFeatureBadge from "@/components/GetStarted/PaidFeatureBadge";
@@ -2839,6 +2840,11 @@ function StandardFactMetricModal({
                           type="number"
                           step="any"
                           append="%"
+                          // Not `disabled`: react-hook-form drops disabled values
+                          readOnly={
+                            form.watch("maxPercentChangeMode") === "empirical"
+                          }
+                          containerClassName="mb-2"
                           {...form.register("maxPercentChange", {
                             valueAsNumber: true,
                           })}
@@ -2846,6 +2852,10 @@ function StandardFactMetricModal({
             be flagged as suspicious (default ${
               metricDefaults.maxPercentageChange * 100
             }%)`}
+                        />
+                        <EmpiricalMaxPercentChange
+                          form={form}
+                          metricId={isNew ? undefined : existing?.id}
                         />
                         <Field
                           size="legacy"

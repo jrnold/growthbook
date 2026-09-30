@@ -712,6 +712,10 @@ app.get(
   "/metrics/:id/experiments",
   metricsController.getMetricExperimentResults,
 );
+app.get(
+  "/metrics/:id/suspicious-change-threshold",
+  metricsController.getMetricSuspiciousChangeThreshold,
+);
 app.get("/metrics/:id/northstar", metricsController.getMetricNorthstarData);
 app.get(
   "/metrics/:id/gen-description",

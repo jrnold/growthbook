@@ -44,6 +44,7 @@ import {
 } from "back-end/src/util/errors";
 import { assertFeatureNotLockedByRamp } from "back-end/src/services/rampSchedule";
 import { trackEventForContext } from "back-end/src/services/growthbook";
+import { refreshEmpiricalThresholdsForExperiment } from "back-end/src/services/suspiciousChangeThreshold";
 
 export type StartChecklistItemStatus = {
   key: string;
@@ -869,6 +870,8 @@ export async function stopExperiment({
       source: context.auditUser?.type ?? "agenda-job",
       result: updated.results,
     });
+    // Not awaited: a derived-value refresh should not delay or fail the stop
+    void refreshEmpiricalThresholdsForExperiment(context, updated);
   }
 
   return { experiment, updated, isEnding };

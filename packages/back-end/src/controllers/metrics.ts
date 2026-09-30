@@ -2,6 +2,7 @@ import { Response } from "express";
 import {
   isFactMetricId,
   getFactMetricPrimaryFactTableId,
+  SuspiciousChangeEstimate,
 } from "shared/experiments";
 import { daysBetween } from "shared/dates";
 import { isDefined } from "shared/util";
@@ -16,6 +17,7 @@ import { ExperimentWithSnapshot } from "shared/types/experiment-snapshot";
 import { EventUserForResponseLocals } from "shared/types/events/event-types";
 import { ExperimentInterfaceStringDates } from "shared/types/experiment";
 import { MetricAnalysisInterface } from "shared/types/metric-analysis";
+import { computeSuspiciousChangeThreshold } from "back-end/src/services/suspiciousChangeThreshold";
 import {
   AuthRequest,
   ResponseWithStatusAndError,
@@ -538,6 +540,22 @@ export async function putMetric(
     status: 200,
   });
 }
+
+export const getMetricSuspiciousChangeThreshold = async (
+  req: AuthRequest<never, { id: string }>,
+  res: Response<{ status: 200; estimate: SuspiciousChangeEstimate }>,
+) => {
+  const context = getContextFromReq(req);
+
+  const metric = await getExperimentMetricById(context, req.params.id);
+  if (!metric) {
+    throw new Error("Could not find metric with that id");
+  }
+
+  const estimate = await computeSuspiciousChangeThreshold(context, metric);
+
+  res.status(200).json({ status: 200, estimate });
+};
 
 export const getMetricExperimentResults = async (
   req: AuthRequest<

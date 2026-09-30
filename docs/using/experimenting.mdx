@@ -211,6 +211,43 @@ working properly.
 You can set thresholds per metric for a maximum percent change. When a metric results is above this,
 GrowthBook will show an alert. Large uplifts may indicate a bug - see [Twymans Law](/using/experimentation-problems#twymans-law).
 
+#### Setting the threshold from past experiments
+
+A single organization-wide default rarely suits every metric: a 20% change is routine for a small, noisy
+metric and implausible for revenue per user. For Fact Metrics, GrowthBook can derive the threshold from
+the lifts the metric has actually shown. When editing a Fact Metric, under the advanced settings you can
+either:
+
+- click **Use suggested value** to fill in the computed threshold once, or
+- check **Set max percent change from past experiments** to have GrowthBook keep the threshold up to
+  date. It is recomputed whenever an experiment that uses the metric is stopped.
+
+The threshold is computed from the relative lift of every non-baseline variation in stopped,
+non-Bandit experiments whose results passed the metric's minimum sample size. Results that were
+already flagged as suspicious are kept, so the old threshold does not truncate the distribution.
+
+An observed lift is a true effect plus sampling noise, and the threshold is set on the true effects
+alone: `3 × τ`, where τ is the standard deviation of the metric's true effects around zero. τ comes
+from the same James-Stein shrinkage GrowthBook uses to adjust scaled impact: the share of the lifts'
+total variance that sampling noise explains is removed, and what remains is τ². The noise variance is
+the average squared standard error of the past results. For metrics with a proper Bayesian prior, the
+flat-prior estimates are used so the lifts are not shrunk twice.
+
+This is deliberate. A small, noisy experiment can only reach statistical significance with a lift
+several times larger than any effect the metric has really shown, and that lift is likely exaggerated
+(a [type M error](https://doi.org/10.1177/1745691614551642)). A threshold based on observed lifts
+would absorb that noise and excuse exactly those results.
+
+At least 10 variation results are required. If a metric has fewer, or noise alone explains the
+spread of its lifts, GrowthBook tries in order:
+
+1. τ from the lifts of all metrics in your 200 most recent stopped experiments,
+2. `|median| + 4 × robust SD` of the metric's observed lifts (1.4826 × the median absolute deviation),
+3. the same, across all metrics,
+4. the manually entered value, or the organization default.
+
+The metric modal says when the threshold comes from all metrics rather than the metric's own history.
+
 ### Guardrails
 
 Guardrail metrics are ones that you want to keep an eye on, but aren't trying to specifically improve with your

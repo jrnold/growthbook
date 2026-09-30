@@ -33,6 +33,7 @@ import {
 import { projectFilterQuery } from "back-end/src/util/mongo.util";
 import { validateAggregationSpecification } from "back-end/src/services/factMetricAggregationValidation";
 import { healPriorSettings } from "back-end/src/util/priors";
+import { refreshEmpiricalThresholdForMetric } from "back-end/src/services/suspiciousChangeThreshold";
 import { CasConflictError, Context, MakeModelClass } from "./BaseModel";
 import { getDataSourceById } from "./DataSourceModel";
 import { getFactTableMap } from "./FactTableModel";
@@ -167,6 +168,9 @@ type WriteOptions = {
   // Set by removeAutoSlices: a metricAutoSlices-only write that maintains
   // derived state and is exempt from the API-managed channel guard.
   autoSliceCascade?: boolean;
+  // Set by setEmpiricalMaxPercentChange: a maxPercentChange-only write that
+  // maintains derived state, exempt from the same guard.
+  empiricalThresholdRefresh?: boolean;
 };
 
 export class FactMetricModel extends BaseClass<WriteOptions> {
@@ -221,6 +225,39 @@ export class FactMetricModel extends BaseClass<WriteOptions> {
           metric,
           { metricAutoSlices },
           { autoSliceCascade: true },
+          { dangerouslyBypassCanUpdate: true },
+        );
+        return;
+      } catch (e) {
+        if (!(e instanceof CasConflictError) || attempt >= maxAttempts) {
+          throw e;
+        }
+      }
+    }
+  }
+
+  // Refresh of a value derived from experiment history. Authority is the
+  // metric's own "empirical" mode, so this bypasses canUpdate: the person
+  // stopping an experiment rarely has permission to edit its metrics.
+  public async setEmpiricalMaxPercentChange(
+    metricId: string,
+    maxPercentChange: number,
+  ): Promise<void> {
+    const maxAttempts = 3;
+    for (let attempt = 1; ; attempt++) {
+      const [metric] = await this._find(
+        { id: metricId },
+        { bypassReadPermissionChecks: true },
+      );
+      if (!metric || metric.maxPercentChangeMode !== "empirical") return;
+      if (metric.maxPercentChange === maxPercentChange) return;
+      // Would fail validation; keep the previous threshold instead
+      if (maxPercentChange <= metric.minPercentChange) return;
+      try {
+        await this.updateIfUnchanged(
+          metric,
+          { maxPercentChange },
+          { empiricalThresholdRefresh: true },
           { dangerouslyBypassCanUpdate: true },
         );
         return;
@@ -423,12 +460,35 @@ export class FactMetricModel extends BaseClass<WriteOptions> {
     ) {
       return;
     }
+    if (
+      writeOptions?.empiricalThresholdRefresh &&
+      Object.keys(updates).every((k) => k === "maxPercentChange")
+    ) {
+      return;
+    }
     // API-managed metrics are only editable through the API so their
     // definition can't drift from the caller's source of truth.
     if (existing.managedBy === "api" && !this.context.isApiRequest) {
       throw new Error(
         "Cannot update fact metric managed by API if the request isn't from the API.",
       );
+    }
+  }
+
+  protected async afterCreate(doc: FactMetricInterface) {
+    await refreshEmpiricalThresholdForMetric(this.context, doc);
+  }
+
+  protected async afterUpdate(
+    existing: FactMetricInterface,
+    updates: UpdateProps<FactMetricInterface>,
+    newDoc: FactMetricInterface,
+  ) {
+    if (
+      newDoc.maxPercentChangeMode === "empirical" &&
+      existing.maxPercentChangeMode !== "empirical"
+    ) {
+      await refreshEmpiricalThresholdForMetric(this.context, newDoc);
     }
   }
 

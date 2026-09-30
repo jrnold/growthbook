@@ -145,6 +145,7 @@ export function getDefaultFactMetricProps({
       existing?.maxPercentChange ??
       metricDefaults.maxPercentageChange ??
       DEFAULT_MAX_PERCENT_CHANGE,
+    maxPercentChangeMode: existing?.maxPercentChangeMode ?? "manual",
     minSampleSize:
       existing?.minSampleSize ??
       metricDefaults.minimumSampleSize ??

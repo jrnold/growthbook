@@ -30197,6 +30197,19 @@ paths:
                     proportion (e.g. put 0.5 for 50%)
                   type: number
                   minimum: 0
+                maxPercentChangeMode:
+                  description: >-
+                    Set to "empirical" to have GrowthBook derive
+                    maxPercentChange from the distribution of lifts in past
+                    experiments. The value is refreshed when an experiment using
+                    the metric is stopped. While the metric has too little
+                    history, lifts are pooled across all metrics; if that is
+                    also too little, the supplied or default maxPercentChange is
+                    used.
+                  type: string
+                  enum:
+                    - manual
+                    - empirical
                 minSampleSize:
                   type: number
                   minimum: 0
@@ -30883,6 +30896,19 @@ paths:
                     proportion (e.g. put 0.5 for 50%)
                   type: number
                   minimum: 0
+                maxPercentChangeMode:
+                  description: >-
+                    Set to "empirical" to have GrowthBook derive
+                    maxPercentChange from the distribution of lifts in past
+                    experiments. The value is refreshed when an experiment using
+                    the metric is stopped. While the metric has too little
+                    history, lifts are pooled across all metrics; if that is
+                    also too little, the supplied or default maxPercentChange is
+                    used.
+                  type: string
+                  enum:
+                    - manual
+                    - empirical
                 minSampleSize:
                   type: number
                   minimum: 0
@@ -31909,6 +31935,19 @@ paths:
                               50%)
                             type: number
                             minimum: 0
+                          maxPercentChangeMode:
+                            description: >-
+                              Set to "empirical" to have GrowthBook derive
+                              maxPercentChange from the distribution of lifts in
+                              past experiments. The value is refreshed when an
+                              experiment using the metric is stopped. While the
+                              metric has too little history, lifts are pooled
+                              across all metrics; if that is also too little,
+                              the supplied or default maxPercentChange is used.
+                            type: string
+                            enum:
+                              - manual
+                              - empirical
                           minSampleSize:
                             type: number
                             minimum: 0
@@ -67100,6 +67139,14 @@ components:
           type: number
         maxPercentChange:
           type: number
+        maxPercentChangeMode:
+          description: >-
+            When "empirical", maxPercentChange is kept in sync with the
+            distribution of lifts from past experiments.
+          type: string
+          enum:
+            - manual
+            - empirical
         minSampleSize:
           type: number
         targetMDE:

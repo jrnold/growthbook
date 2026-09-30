@@ -4,6 +4,7 @@ import { MAX_FUNNEL_STEPS } from "shared/funnels";
 import { ownerEmailField, ownerField, ownerInputField } from "./owner-field";
 import { apiPaginationFieldsValidator, paginationQueryFields } from "./shared";
 import {
+  maxPercentChangeModes,
   isValidRowFilterRangeLength,
   ROW_FILTER_RANGE_LENGTH_MESSAGE,
 } from "./fact-table";
@@ -345,6 +346,12 @@ export const apiFactMetricValidator = namedSchema(
         .optional(),
       minPercentChange: z.coerce.number(),
       maxPercentChange: z.coerce.number(),
+      maxPercentChangeMode: z
+        .enum(maxPercentChangeModes)
+        .describe(
+          'When "empirical", maxPercentChange is kept in sync with the distribution of lifts from past experiments.',
+        )
+        .optional(),
       minSampleSize: z.coerce.number(),
       targetMDE: z.coerce.number(),
       managedBy: z
@@ -664,6 +671,12 @@ export const postFactMetricBodyFields = z.object({
     .gte(0)
     .describe(
       "Maximum percent change to consider uplift significant, as a proportion (e.g. put 0.5 for 50%)",
+    )
+    .optional(),
+  maxPercentChangeMode: z
+    .enum(maxPercentChangeModes)
+    .describe(
+      'Set to "empirical" to have GrowthBook derive maxPercentChange from the distribution of lifts in past experiments. The value is refreshed when an experiment using the metric is stopped. While the metric has too little history, lifts are pooled across all metrics; if that is also too little, the supplied or default maxPercentChange is used.',
     )
     .optional(),
   minSampleSize: z.number().gte(0).optional(),

@@ -6,7 +6,10 @@ import { ExperimentInterfaceStringDates } from "shared/types/experiment";
 import { datetime, getValidDate } from "shared/dates";
 import { ExperimentSnapshotInterface } from "shared/types/experiment-snapshot";
 import { getSnapshotAnalysis } from "shared/util";
-import { getAllMetricIdsFromExperiment } from "shared/experiments";
+import {
+  getAllMetricIdsFromExperiment,
+  jamesSteinAdjustment,
+} from "shared/experiments";
 import { useAuth } from "@/services/auth";
 import useOrgSettings from "@/hooks/useOrgSettings";
 import { useCurrency } from "@/hooks/useCurrency";
@@ -24,7 +27,6 @@ import DatePicker from "@/components/DatePicker";
 import { GBInfo } from "@/components/Icons";
 import Callout from "@/ui/Callout";
 import Button from "@/ui/Button";
-import { jamesSteinAdjustment } from "./JamesSteinAdjustment";
 import ExperimentImpactTab from "./ExperimentImpactTab";
 
 export function NoExperimentsForImpactBanner() {

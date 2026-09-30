@@ -415,6 +415,8 @@ export const metricTypeValidator = z.enum([
   "funnel",
 ]);
 
+export const maxPercentChangeModes = ["manual", "empirical"] as const;
+
 const factMetricObjectValidator = z
   .object({
     id: z.string(),
@@ -446,6 +448,9 @@ const factMetricObjectValidator = z
     priorSettings: priorSettingsValidator,
 
     maxPercentChange: z.number(),
+    // "empirical": the back end keeps maxPercentChange in sync with the
+    // distribution of lifts from past experiments
+    maxPercentChangeMode: z.enum(maxPercentChangeModes).optional(),
     minPercentChange: z.number(),
     minSampleSize: z.number(),
     targetMDE: z.number().optional(),
