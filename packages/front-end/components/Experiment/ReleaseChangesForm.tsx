@@ -4,7 +4,10 @@ import {
   ExperimentPhaseStringDates,
   ExperimentTargetingData,
 } from "shared/types/experiment";
-import { getLatestPhaseVariations } from "shared/experiments";
+import {
+  getLatestPhaseVariations,
+  isConditionMoreRestrictive,
+} from "shared/experiments";
 import React, { useEffect, useMemo, useState } from "react";
 import { FaExternalLinkAlt } from "react-icons/fa";
 import clsx from "clsx";
@@ -549,12 +552,9 @@ function getRecommendedRolloutData({
   // ===============================
 
   // 1. More restrictive targeting (conditions)?
-  // Remove outer curly braces from condition so we can use it to look for substrings
-  // e.g. If they have 3 conditions ANDed together and delete one, that is a safe change
-  // But if they add new conditions or modify an existing one, that is not
-  // There are some edge cases with '$or' that are not handled correctly, but those are super rare
-  const strippedCondition = data.condition.slice(1).slice(0, -1);
-  if (!(lastPhase.condition || "").includes(strippedCondition)) {
+  // Removing ANDed clauses is safe. Adding or changing a clause is not, and
+  // neither is restructuring one (e.g. unwrapping a $not or dropping an $or branch).
+  if (isConditionMoreRestrictive(lastPhase.condition, data.condition)) {
     moreRestrictiveTargeting = true;
   }
   const savedGroupsRestrictiveness = compareSavedGroups(
