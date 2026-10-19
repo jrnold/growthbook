@@ -231,10 +231,14 @@ function isFieldClauseImplied(
     return false;
   }
 
-  // When the old clause pins the attribute to a few values, try each one
+  // When the old clause pins the attribute to a few values, try each one.
+  // evalField has no saved groups to check them against.
   const values = exactValues(o, a, datatype);
   if (values) {
-    return values.every((v) => evalField(field, v, newValue));
+    return (
+      !usesSavedGroups(newValue) &&
+      values.every((v) => evalField(field, v, newValue))
+    );
   }
   // $veq pins paddedVersionString of the attribute, which is all that version
   // operators look at
@@ -293,6 +297,24 @@ function exactValues(
   }
   if (op === "$in" && Array.isArray(arg)) return arg.filter(isPrimitive);
   return null;
+}
+
+const SAVED_GROUP_OPERATORS = new Set([
+  "$inGroup",
+  "$notInGroup",
+  "$savedGroup",
+]);
+
+/**
+ * Whether a clause refers to a saved group anywhere, such as inside a `$not`
+ * or an `$elemMatch`. evalCondition treats an unknown group as an empty list.
+ */
+function usesSavedGroups(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(usesSavedGroups);
+  if (!isPlainObject(value)) return false;
+  return Object.entries(value).some(
+    ([k, v]) => SAVED_GROUP_OPERATORS.has(k) || usesSavedGroups(v),
+  );
 }
 
 function evalField(field: string, value: Primitive, clause: unknown): boolean {

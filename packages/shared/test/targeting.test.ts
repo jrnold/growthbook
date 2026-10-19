@@ -255,6 +255,31 @@ describe("isConditionMoreRestrictive with widened clauses", () => {
       false,
     );
   });
+
+  it("flags moving pinned values into a saved group clause", () => {
+    // The values may be in the group, which can't be checked here
+    expect(
+      check({ id: { $eq: "abc" } }, { id: { $notInGroup: "grp_1" } }),
+    ).toBe(true);
+    expect(
+      check({ country: "US" }, { country: { $notInGroup: "grp_1" } }),
+    ).toBe(true);
+    expect(
+      check(
+        { country: { $in: ["US", "CA"] } },
+        { country: { $notInGroup: "grp_1" } },
+      ),
+    ).toBe(true);
+    expect(
+      check({ id: { $eq: "abc" } }, { id: { $not: { $inGroup: "grp_1" } } }),
+    ).toBe(true);
+    expect(
+      check(
+        { tags: { $eq: "a" } },
+        { tags: { $not: { $elemMatch: { $savedGroup: { id: "grp_1" } } } } },
+      ),
+    ).toBe(true);
+  });
 });
 
 // Soundness: whenever a change counts as not more restrictive, no user that
