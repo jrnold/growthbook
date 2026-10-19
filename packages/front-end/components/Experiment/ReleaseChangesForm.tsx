@@ -4,6 +4,7 @@ import {
   ExperimentPhaseStringDates,
   ExperimentTargetingData,
 } from "shared/types/experiment";
+import { SDKAttributeSchema } from "shared/types/organization";
 import {
   getLatestPhaseVariations,
   isConditionMoreRestrictive,
@@ -67,8 +68,9 @@ export default function ReleaseChangesForm({
         experiment,
         data: formValues,
         stickyBucketing: usingStickyBucketing,
+        attributeSchema: settings.attributeSchema,
       }),
-    [experiment, formValues, usingStickyBucketing],
+    [experiment, formValues, usingStickyBucketing, settings.attributeSchema],
   );
 
   // set the release plan selector to the recommended value
@@ -510,10 +512,12 @@ function getRecommendedRolloutData({
   experiment,
   data,
   stickyBucketing,
+  attributeSchema,
 }: {
   experiment: ExperimentInterfaceStringDates;
   data: ExperimentTargetingData;
   stickyBucketing: boolean;
+  attributeSchema?: SDKAttributeSchema;
 }): RecommendedRolloutData {
   const lastPhase: ExperimentPhaseStringDates | undefined =
     experiment.phases[experiment.phases.length - 1];
@@ -552,9 +556,15 @@ function getRecommendedRolloutData({
   // ===============================
 
   // 1. More restrictive targeting (conditions)?
-  // Removing ANDed clauses is safe. Adding or changing a clause is not, and
-  // neither is restructuring one (e.g. unwrapping a $not or dropping an $or branch).
-  if (isConditionMoreRestrictive(lastPhase.condition, data.condition)) {
+  // Removing or widening ANDed clauses is safe. Narrowing or adding a clause is
+  // not, and neither is restructuring one (e.g. unwrapping a $not).
+  if (
+    isConditionMoreRestrictive(
+      lastPhase.condition,
+      data.condition,
+      attributeSchema,
+    )
+  ) {
     moreRestrictiveTargeting = true;
   }
   const savedGroupsRestrictiveness = compareSavedGroups(
