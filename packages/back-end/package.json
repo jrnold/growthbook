@@ -125,7 +125,7 @@
     "proxy-agent": "^6.5.0",
     "python-shell": "^3.0.0",
     "saslprep": "^1.0.0",
-    "satori": "^0.26.0",
+    "satori": "^0.33.5",
     "scim2-parse-filter": "^0.2.8",
     "shared": "workspace:*",
     "snowflake-sdk": "^2.4.3",
