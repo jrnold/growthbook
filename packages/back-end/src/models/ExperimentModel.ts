@@ -203,6 +203,7 @@ const experimentSchema = new mongoose.Schema({
   secondaryMetrics: {},
   guardrailMetrics: {},
   activationMetric: String,
+  takeUpMetric: String,
   segment: String,
   queryFilter: String,
   skipPartialData: Boolean,
@@ -1661,6 +1662,7 @@ export async function removeMetricFromExperiments(
     organization: orgId,
     activationMetric: metricId,
   };
+  const takeUpMetricQuery = { organization: orgId, takeUpMetric: metricId };
   const docsToTrackChanges = await findExperiments(context, {
     $or: [
       oldMetricQuery,
@@ -1669,6 +1671,7 @@ export async function removeMetricFromExperiments(
       secondaryQuery,
       guardrailQuery,
       activationMetricQuery,
+      takeUpMetricQuery,
     ],
   });
 
@@ -1709,6 +1712,10 @@ export async function removeMetricFromExperiments(
   // Remove from activationMetric
   await ExperimentModel.updateMany(activationMetricQuery, {
     $set: { activationMetric: "" },
+  });
+
+  await ExperimentModel.updateMany(takeUpMetricQuery, {
+    $set: { takeUpMetric: "" },
   });
 
   const ids = Object.keys(oldExperiments);

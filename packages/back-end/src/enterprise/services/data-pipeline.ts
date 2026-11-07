@@ -74,6 +74,7 @@ export async function assertIncrementalRefreshPrerequisites({
       "incremental-refresh",
     ),
     activationMetric: experiment.activationMetric,
+    takeUpMetric: experiment.takeUpMetric,
     metrics: selectedMetrics,
     experimentType: experiment.type,
   });

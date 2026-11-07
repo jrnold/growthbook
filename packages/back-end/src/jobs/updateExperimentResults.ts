@@ -184,8 +184,10 @@ const updateSingleExperiment = async (job: UpdateSingleExpJob) => {
       context,
       phaseIndex: experiment.phases.length - 1,
       defaultAnalysisSettings: analysisSettings,
-      additionalAnalysisSettings:
-        getAdditionalExperimentAnalysisSettings(analysisSettings),
+      additionalAnalysisSettings: getAdditionalExperimentAnalysisSettings(
+        analysisSettings,
+        experiment,
+      ),
       settingsForSnapshotMetrics: settingsForSnapshotMetrics || [],
       metricMap,
       factTableMap,

@@ -248,6 +248,7 @@ export function getMetricData(
     metric,
     metricIndex,
     ratioMetric,
+    takeUp: false,
     funnelMetric,
     quantileMetric,
     metricQuantileSettings,

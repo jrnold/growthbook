@@ -1,6 +1,10 @@
 import cloneDeep from "lodash/cloneDeep";
 import { isFunnelSupportedDatasourceType } from "shared/enterprise";
-import { getUserIdTypes, isFactFunnelMetric } from "shared/experiments";
+import {
+  getUserIdTypes,
+  isFactFunnelMetric,
+  isTakeUpEligibleMetric,
+} from "shared/experiments";
 import { format } from "shared/sql";
 import type { DataSourceInterface } from "shared/types/datasource";
 import type {
@@ -123,8 +127,8 @@ export function getExperimentFactMetricsQuery(
   const flattenUnitMetrics =
     hasFunnelMetrics && factTablesWithIndices.length > 1;
 
-  const metricData = metricsWithIndices.map((metric) =>
-    getMetricData(
+  const metricData = metricsWithIndices.map((metric) => {
+    const data = getMetricData(
       dialect,
       metric,
       settings,
@@ -133,8 +137,16 @@ export function getExperimentFactMetricsQuery(
       "m",
       `m${metric.index}`,
       flattenUnitMetrics,
-    ),
-  );
+    );
+    return {
+      ...data,
+      takeUp: !!params.takeUpMetric && isTakeUpEligibleMetric(data.metric),
+    };
+  });
+  const hasTakeUp = metricData.some((d) => d.takeUp);
+  if (hasTakeUp && settings.banditSettings) {
+    throw new Error("Take-up metrics are not supported in Bandit experiments");
+  }
 
   // TODO(sql): Separate metric start by fact table
   const raMetricSettings = metricData
@@ -477,6 +489,15 @@ export function getExperimentFactMetricsQuery(
         , variation
         , ${timestampColumn} AS timestamp
         , ${dialect.dateTrunc("first_exposure_timestamp", "day")} AS first_exposure_date
+        ${
+          hasTakeUp
+            ? `, ${dialect.ifElse(
+                "first_take_up_timestamp IS NOT NULL",
+                "1",
+                "0",
+              )} AS take_up`
+            : ""
+        }
         ${banditDates?.length ? getBanditCaseWhen(dialect, banditDates) : ""}
     ${raMetricSettings
       .map(
@@ -882,6 +903,7 @@ export function getExperimentFactMetricsQuery(
       funnelsResolvedOnSource: funnelMetrics.length > 0,
       eventQuantileTableName: "__eventQuantileMetric",
       capValueTableName: "__capValue",
+      takeUpTableName: hasTakeUp ? "__distinctUsers" : undefined,
       factTablesWithIndices,
       percentileTableIndices,
     })}

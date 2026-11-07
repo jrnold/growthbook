@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import omit from "lodash/omit";
 import {
   ExperimentSnapshotAnalysis,
   ExperimentSnapshotAnalysisSettings,
@@ -6,9 +7,11 @@ import {
 } from "shared/types/experiment-snapshot";
 import {
   DifferenceType,
+  EffectType,
   PValueCorrection,
   StatsEngine,
 } from "shared/types/stats";
+import { getEffectType } from "shared/experiments";
 import { Flex, Text } from "@radix-ui/themes";
 import { PiCaretDownFill, PiCheck } from "react-icons/pi";
 import { getSnapshotAnalysis } from "shared/util";
@@ -160,6 +163,53 @@ export default function DifferenceTypeChooserChangeColumnLabel({
     apiCall,
   ]);
 
+  const effectType = getEffectType({
+    takeUpMetric: snapshot?.settings.takeUpMetric,
+    effectType: analysis?.settings.effectType,
+  });
+  const [desiredEffectType, setDesiredEffectType] =
+    useState<EffectType>(effectType);
+  useEffect(() => {
+    setDesiredEffectType(effectType);
+  }, [effectType]);
+  const canChooseEffectType =
+    !!snapshot?.settings.takeUpMetric &&
+    !!analysis &&
+    !!setAnalysisSettings &&
+    !!mutate;
+
+  const handleChangeEffectType = async (newEffectType: EffectType) => {
+    if (!snapshot || !analysis || !setAnalysisSettings || !mutate) return;
+    setDesiredEffectType(newEffectType);
+    // ITT omits the key so it matches analyses created before take-up existed
+    const rest = omit(analysis.settings, "effectType");
+    const newSettings: ExperimentSnapshotAnalysisSettings =
+      newEffectType === "cace" ? { ...rest, effectType: "cace" } : rest;
+    try {
+      const analysisExists = getSnapshotAnalysis(snapshot, newSettings);
+      const status = await triggerAnalysisUpdate(
+        newSettings,
+        analysis,
+        snapshot,
+        apiCall,
+        setPostLoading,
+        phase,
+      );
+      if (status === "success") {
+        track("Experiment Analysis: switch effect type", {
+          effectType: newEffectType,
+        });
+        if (!analysisExists) await mutate();
+        setAnalysisSettings(newSettings);
+      } else if (status === "fail") {
+        setDesiredEffectType(effectType);
+        mutate();
+      }
+    } finally {
+      setPostLoading(false);
+    }
+  };
+
   const handleChangeDifferenceType = async (
     newDifferenceType: DifferenceType,
   ) => {
@@ -229,6 +279,7 @@ export default function DifferenceTypeChooserChangeColumnLabel({
     >
       <Flex align="center">
         {changeTitle}
+        {effectType === "cace" ? " (CACE)" : ""}
         {setDifferenceType && (
           <>
             <PiCaretDownFill style={{ fontSize: "12px" }} />
@@ -281,6 +332,41 @@ export default function DifferenceTypeChooserChangeColumnLabel({
           </DropdownMenuItem>
         ))}
       </DropdownMenuGroup>
+      {canChooseEffectType && (
+        <DropdownMenuGroup>
+          <DropdownMenuLabel
+            textSize="sm"
+            textStyle={{ textTransform: "uppercase", fontWeight: 600 }}
+          >
+            Effect
+          </DropdownMenuLabel>
+          {(
+            [
+              ["itt", "Per user assigned (ITT)"],
+              ["cace", "Per user who took it up (CACE)"],
+            ] as const
+          ).map(([et, label]) => (
+            <DropdownMenuItem
+              key={et}
+              onClick={async () => {
+                await handleChangeEffectType(et);
+                setDropdownOpen(false);
+              }}
+            >
+              <Flex align="center" gap="2">
+                <Flex
+                  align="center"
+                  justify="center"
+                  style={{ width: 16, flexShrink: 0 }}
+                >
+                  {desiredEffectType === et ? <PiCheck /> : null}
+                </Flex>
+                <Text>{label}</Text>
+              </Flex>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      )}
     </DropdownMenu>
   );
 }

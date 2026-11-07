@@ -15,6 +15,8 @@ export type IndexedPValue = {
 };
 
 export type DifferenceType = "relative" | "absolute" | "scaled";
+// Intent-to-treat, or complier average causal effect via instrumental variables
+export type EffectType = "itt" | "cace";
 
 // Mirrors the return shape of `useConfidenceLevels`. Grouped together so
 // consumers can receive either the whole bundle (for Bayesian chance-to-win
@@ -306,6 +308,7 @@ export interface AnalysisSettingsForStatsEngine {
   one_sided_intervals?: boolean;
   use_covariate_as_response?: boolean;
   post_stratification_enabled?: boolean;
+  effect_type?: EffectType;
 }
 
 export interface BanditSettingsForStatsEngine {
@@ -350,6 +353,7 @@ export interface MetricSettingsForStatsEngine {
   target_mde: number;
   business_metric_type: BusinessMetricTypeForStatsEngine[];
   compute_uncapped_metric: boolean;
+  take_up?: boolean;
 }
 
 export interface QueryResultsForStatsEngine {

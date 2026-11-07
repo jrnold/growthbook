@@ -18,6 +18,7 @@ import {
   getAllMetricIdsFromExperiment,
   getAllVariations,
   getActivePhase,
+  isValidTakeUpMetric,
 } from "shared/experiments";
 import { getScopedSettings } from "shared/settings";
 import { isExperimentIncrementalEnabled } from "shared/enterprise";
@@ -1672,6 +1673,27 @@ export async function postExperiment(
 
   const metricMap = await getMetricMap(context);
 
+  if (data.takeUpMetric && data.takeUpMetric !== experiment.takeUpMetric) {
+    const takeUpMetric = metricMap.get(data.takeUpMetric);
+    if (!takeUpMetric || !isValidTakeUpMetric(takeUpMetric)) {
+      res.status(400).json({
+        status: 400,
+        message:
+          "Take-up metric must be a yes-or-no metric: " + data.takeUpMetric,
+      });
+      return;
+    }
+    if (datasourceId && takeUpMetric.datasource !== datasourceId) {
+      res.status(400).json({
+        status: 400,
+        message:
+          "Take-up metric must be tied to the same Data Source as the experiment: " +
+          data.takeUpMetric,
+      });
+      return;
+    }
+  }
+
   const invalidMetricIds: string[] = [];
 
   if (newMetricIds.length) {
@@ -1873,6 +1895,7 @@ export async function postExperiment(
     "description",
     "hypothesis",
     "activationMetric",
+    "takeUpMetric",
     "segment",
     "queryFilter",
     "skipPartialData",

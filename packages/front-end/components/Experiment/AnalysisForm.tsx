@@ -16,7 +16,10 @@ import {
 import { isProjectListValidForProject } from "shared/util";
 import { getScopedSettings } from "shared/settings";
 import Collapsible from "react-collapsible";
-import { getLatestPhaseVariations } from "shared/experiments";
+import {
+  getLatestPhaseVariations,
+  isValidTakeUpMetric,
+} from "shared/experiments";
 import { Box, Flex, Separator } from "@radix-ui/themes";
 import { useAuth } from "@/services/auth";
 import { useDefinitions } from "@/services/DefinitionsContext";
@@ -148,6 +151,7 @@ const AnalysisForm: FC<{
           experiment.userIdType,
         )?.id || "",
       activationMetric: experiment.activationMetric || "",
+      takeUpMetric: experiment.takeUpMetric || "",
       segment: experiment.segment || "",
       queryFilter: experiment.queryFilter || "",
       skipPartialData: experiment.skipPartialData ? "strict" : "loose",
@@ -623,6 +627,10 @@ const AnalysisForm: FC<{
                 if (activationMetric && !isValidMetric(activationMetric)) {
                   form.setValue("activationMetric", "");
                 }
+                const takeUpMetric = form.watch("takeUpMetric");
+                if (takeUpMetric && !isValidMetric(takeUpMetric)) {
+                  form.setValue("takeUpMetric", "");
+                }
 
                 // Filter the selected metrics to only valid ones
                 const goals = form.watch("goalMetrics");
@@ -1064,6 +1072,32 @@ const AnalysisForm: FC<{
                       .
                     </Callout>
                   )}
+                <Tooltip
+                  shouldDisplay={
+                    isExperimentIncludedInIncrementalRefresh &&
+                    form.watch("takeUpMetric") === ""
+                  }
+                  body="Take-up Metrics are not yet supported with Incremental Refresh."
+                >
+                  <MetricSelector
+                    disabled={isExperimentIncludedInIncrementalRefresh}
+                    datasource={form.watch("datasource")}
+                    exposureQueryId={exposureQueryId}
+                    project={experiment.project}
+                    includeFacts={true}
+                    label="Take-up Metric"
+                    initialOption="None"
+                    filterMetrics={(m) => {
+                      const metric = getExperimentMetricById(m.id);
+                      return !!metric && isValidTakeUpMetric(metric);
+                    }}
+                    value={form.watch("takeUpMetric")}
+                    onChange={(value) =>
+                      form.setValue("takeUpMetric", value || "")
+                    }
+                    helpText="Adds an effect per user who took up the treatment (CACE) for mean and proportion Fact Metrics"
+                  />
+                </Tooltip>
               </>
             )}
 

@@ -204,6 +204,7 @@ export async function updateExperimentDashboards({
       defaultAnalysisSettings: analysisSettings,
       additionalAnalysisSettings: getAdditionalExperimentAnalysisSettings(
         analysisSettings,
+        experiment,
       ).concat(additionalAnalysisSettings),
       settingsForSnapshotMetrics: settingsForSnapshotMetrics || [],
       metricMap,

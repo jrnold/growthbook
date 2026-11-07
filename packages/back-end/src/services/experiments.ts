@@ -368,6 +368,7 @@ export async function getMetricMapForExperiment(
     true,
     metricGroups,
   );
+  if (experiment.takeUpMetric) metricIds.push(experiment.takeUpMetric);
   const metrics = await getExperimentMetricsByIds(context, metricIds);
   return new Map(metrics.map((m) => [m.id, m]));
 }
@@ -391,6 +392,7 @@ export async function getMetricMapForExperimentSnapshots(
     settings.secondaryMetrics.forEach((m) => metricIds.add(m));
     settings.guardrailMetrics.forEach((m) => metricIds.add(m));
     if (settings.activationMetric) metricIds.add(settings.activationMetric);
+    if (settings.takeUpMetric) metricIds.add(settings.takeUpMetric);
   }
   // Snapshot ids may be slice-metric ids; resolve to base metric ids to fetch.
   const baseMetricIds = Array.from(
@@ -521,6 +523,7 @@ export function getDefaultExperimentAnalysisSettings({
 
 export function getAdditionalExperimentAnalysisSettings(
   defaultAnalysisSettings: ExperimentSnapshotAnalysisSettings,
+  { takeUpMetric }: { takeUpMetric?: string | null } = {},
 ): ExperimentSnapshotAnalysisSettings[] {
   const additionalAnalyses: ExperimentSnapshotAnalysisSettings[] = [];
 
@@ -540,6 +543,18 @@ export function getAdditionalExperimentAnalysisSettings(
     sequentialTesting: false,
     useCovariateAsResponse: true,
   });
+
+  // Precompute CACE so switching from ITT doesn't need a new analysis.
+  if (takeUpMetric) {
+    additionalAnalyses.push(
+      { ...defaultAnalysisSettings, effectType: "cace" },
+      {
+        ...defaultAnalysisSettings,
+        differenceType: "absolute",
+        effectType: "cace",
+      },
+    );
+  }
 
   return additionalAnalyses;
 }
@@ -868,6 +883,7 @@ export function getSnapshotSettings({
 
   return {
     activationMetric: experiment.activationMetric || null,
+    takeUpMetric: experiment.takeUpMetric || null,
     attributionModel: experiment.attributionModel || "firstExposure",
     lookbackOverride: lookbackOverride,
     skipPartialData: !!experiment.skipPartialData,
@@ -1081,6 +1097,7 @@ export function resetExperimentBanditSettings({
   changes.statsEngine = "bayesian";
   // activation metric
   changes.activationMetric = undefined;
+  changes.takeUpMetric = undefined;
   // segments
   changes.segment = undefined;
   // conversion windows
@@ -2757,8 +2774,10 @@ export async function planExperimentSnapshot({
     phaseIndex: phase,
     useCache,
     defaultAnalysisSettings: analysisSettings,
-    additionalAnalysisSettings:
-      getAdditionalExperimentAnalysisSettings(analysisSettings),
+    additionalAnalysisSettings: getAdditionalExperimentAnalysisSettings(
+      analysisSettings,
+      experiment,
+    ),
     settingsForSnapshotMetrics,
     metricMap,
     factTableMap,

@@ -3,6 +3,7 @@ from pydantic.dataclasses import dataclass
 
 # Types
 DifferenceType = Literal["relative", "absolute", "scaled"]
+EffectType = Literal["itt", "cace"]
 StatsEngine = Literal["bayesian", "frequentist"]
 UnadjustedStatisticType = Literal[
     "ratio", "mean", "quantile_event", "quantile_unit", "iv"
@@ -34,6 +35,7 @@ class AnalysisSettingsForStatsEngine:
     one_sided_intervals: bool = False
     use_covariate_as_response: bool = False
     post_stratification_enabled: bool = False
+    effect_type: EffectType = "itt"
 
 
 @dataclass
@@ -85,6 +87,9 @@ class MetricSettingsForStatsEngine:
     business_metric_type: Optional[List[BusinessMetricType]] = None
     target_mde: float = 0.01
     compute_uncapped_metric: bool = False
+    # Rows also carry take-up moments in the denominator columns, so CACE
+    # analyses can estimate this metric with the iv statistic.
+    take_up: bool = False
 
 
 @dataclass

@@ -40,11 +40,16 @@ export function getExperimentUnitsQuery(
     unitsSettings,
     segment,
     activationMetric: activationMetricDoc,
+    takeUpMetric: takeUpMetricDoc,
     factTableMap,
   } = params;
 
   const activationMetric = processActivationMetric(
     activationMetricDoc,
+    unitsSettings,
+  );
+  const takeUpMetric = processActivationMetric(
+    takeUpMetricDoc ?? null,
     unitsSettings,
   );
 
@@ -64,6 +69,7 @@ export function getExperimentUnitsQuery(
       objects: [
         [exposureQuery.userIdType],
         activationMetric ? getUserIdTypes(activationMetric, factTableMap) : [],
+        takeUpMetric ? getUserIdTypes(takeUpMetric, factTableMap) : [],
         ...unitDimensions.map((d) => [d.dimension.userIdType || "user_id"]),
         segment ? [segment.userIdType || "user_id"] : [],
       ],
@@ -108,6 +114,7 @@ export function getExperimentUnitsQuery(
           ...unitDimensions.map((d) => `u.dim_unit_${d.dimension.id}`),
           ...experimentDimensions.map((d) => `u.dim_exp_${d.id}`),
           ...(activationMetric ? ["u.first_activation_timestamp"] : []),
+          ...(takeUpMetric ? ["u.first_take_up_timestamp"] : []),
         ].join("\n,"),
       }
     : {
@@ -200,6 +207,22 @@ export function getExperimentUnitsQuery(
         : ""
     }
     ${
+      takeUpMetric
+        ? `, __takeUpMetric as (${getMetricCTE(dialect, {
+            metric: takeUpMetric,
+            baseIdType,
+            idJoinMap,
+            startDate: unitsSettings.startDate,
+            endDate: unitsSettings.endDate,
+            experimentId: unitsSettings.experimentId,
+            phase: unitsSettings.phase,
+            customFields: unitsSettings.customFields,
+            factTableMap,
+          })})
+        `
+        : ""
+    }
+    ${
       segment
         ? `, __segment as (${getSegmentCTE(
             dialect,
@@ -271,6 +294,20 @@ export function getExperimentUnitsQuery(
             `
             : ""
         }
+        ${
+          // Take-up is a property of the experiment period, not of any
+          // metric's conversion window.
+          takeUpMetric
+            ? `, MIN(${dialect.ifElse(
+                `t.timestamp >= e.timestamp AND t.timestamp <= ${dialect.toTimestamp(
+                  unitsSettings.endDate,
+                )}`,
+                "t.timestamp",
+                "NULL",
+              )}) AS first_take_up_timestamp
+            `
+            : ""
+        }
         ${contextualUnitsBaseSelectCols}
       FROM
         __experimentExposures e
@@ -291,6 +328,11 @@ export function getExperimentUnitsQuery(
         ${
           activationMetric
             ? `LEFT JOIN __activationMetric a ON (a.${baseIdType} = e.${baseIdType})`
+            : ""
+        }
+        ${
+          takeUpMetric
+            ? `LEFT JOIN __takeUpMetric t ON (t.${baseIdType} = e.${baseIdType})`
             : ""
         }
       ${segment ? `WHERE s.date <= e.timestamp` : ""}

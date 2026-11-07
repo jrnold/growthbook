@@ -145,6 +145,7 @@ export function getIncrementalPipelineUnsupportedReason(params: {
   experimentId: string;
   orgHasIncrementalPipelineFeature: boolean;
   activationMetric: string | null | undefined;
+  takeUpMetric?: string | null;
   metrics: ExperimentMetricDefinition[];
   experimentType: ExperimentInterface["type"];
 }): string | null {
@@ -168,6 +169,10 @@ export function getIncrementalPipelineUnsupportedReason(params: {
 
   if (params.activationMetric) {
     return "Activation metrics are not supported with Incremental Pipeline mode while in beta. Please remove the Activation Metric in the Analysis Settings.";
+  }
+
+  if (params.takeUpMetric) {
+    return "Take-up metrics aren't supported with Incremental Pipeline mode. Remove the Take-up Metric in the Analysis Settings.";
   }
 
   if (params.metrics.length === 0) {

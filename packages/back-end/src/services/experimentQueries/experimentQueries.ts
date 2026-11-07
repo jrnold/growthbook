@@ -9,6 +9,7 @@ import {
   isFactFunnelMetric,
   getFactMetricFactTableIds,
   parseFunnelStepMetricId,
+  isTakeUpEligibleMetric,
 } from "shared/experiments";
 import { FactMetricInterface } from "shared/types/fact-table";
 import { MetricInterface } from "shared/types/metric";
@@ -34,6 +35,8 @@ import {
   RATIO_METRIC_FLOAT_COLS,
   RATIO_METRIC_PERCENTILE_CAPPING_FLOAT_COLS,
   RATIO_METRIC_FLOAT_COLS_UNCAPPED,
+  TAKE_UP_FLOAT_COLS,
+  TAKE_UP_FLOAT_COLS_UNCAPPED,
 } from "./constants";
 
 /**
@@ -63,10 +66,12 @@ export function getNonQuantileNonFunnelFloatColumns({
   metric,
   regressionAdjusted,
   isBandit,
+  takeUp = false,
 }: {
   metric: FactMetricInterface;
   regressionAdjusted: boolean;
   isBandit: boolean;
+  takeUp?: boolean;
 }): string[] {
   // Funnel metrics emit none of the standard float columns; their block is one
   // `m{i}_step_{k}_sum` per step, sized in maxColumnsNeededForMetric.
@@ -161,6 +166,13 @@ export function getNonQuantileNonFunnelFloatColumns({
     ...uncappedCols,
   ];
 
+  if (takeUp && isTakeUpEligibleMetric(metric)) {
+    cols.push(...TAKE_UP_FLOAT_COLS);
+    if (eligibleForUncappedMetric(metric)) {
+      cols.push(...TAKE_UP_FLOAT_COLS_UNCAPPED);
+    }
+  }
+
   if (isBandit) {
     cols.push(...BANDIT_CUPED_FLOAT_COLS);
   }
@@ -173,11 +185,13 @@ export function maxColumnsNeededForMetric({
   regressionAdjusted,
   isBandit,
   efficientQuantileGrid = false,
+  takeUp = false,
 }: {
   metric: FactMetricInterface;
   regressionAdjusted: boolean;
   isBandit: boolean;
   efficientQuantileGrid?: boolean;
+  takeUp?: boolean;
 }) {
   // id column
   const boilerplateCols = 1;
@@ -194,6 +208,7 @@ export function maxColumnsNeededForMetric({
     metric,
     regressionAdjusted,
     isBandit,
+    takeUp,
   });
   switch (metric.metricType) {
     case "mean":
@@ -224,6 +239,7 @@ export function chunkMetrics({
   metrics: {
     metric: FactMetricInterface;
     regressionAdjusted: boolean;
+    takeUp?: boolean;
   }[];
   maxColumnsPerQuery: number;
   isBandit: boolean;
@@ -237,12 +253,13 @@ export function chunkMetrics({
 
   let runningCols = baseColumnsNeeded;
   let runningChunk: FactMetricInterface[] = [];
-  metrics.forEach(({ metric: m, regressionAdjusted }) => {
+  metrics.forEach(({ metric: m, regressionAdjusted, takeUp }) => {
     const colsNeeded = maxColumnsNeededForMetric({
       metric: m,
       regressionAdjusted,
       isBandit,
       efficientQuantileGrid,
+      takeUp,
     });
     const updatedCols = runningCols + colsNeeded;
     if (
@@ -371,6 +388,7 @@ export function getFactMetricGroups(
           regressionAdjusted:
             isRegressionAdjusted(metric) &&
             settings.regressionAdjustmentEnabled,
+          takeUp: !!settings.takeUpMetric,
         };
       }),
       maxColumnsPerQuery: sourceProps.maxColumns,

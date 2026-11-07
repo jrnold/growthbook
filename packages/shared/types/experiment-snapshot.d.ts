@@ -9,6 +9,7 @@ import {
   MetricSettingsForStatsEngine,
   QueryResultsForStatsEngine,
   DifferenceType,
+  EffectType,
   RiskType,
   StatsEngine,
   MetricPowerResponseFromStatsEngine,
@@ -130,6 +131,8 @@ export interface ExperimentSnapshotAnalysisSettings {
   sequentialTesting?: boolean;
   sequentialTestingTuningParameter?: number;
   differenceType: DifferenceType;
+  // "cace" needs settings.takeUpMetric; absent means "itt".
+  effectType?: EffectType;
   pValueCorrection?: null | "holm-bonferroni" | "benjamini-hochberg";
   pValueThreshold?: number;
   baselineVariationIndex?: number;
@@ -196,6 +199,7 @@ export interface ExperimentSnapshotSettings {
   secondaryMetrics: string[];
   guardrailMetrics: string[];
   activationMetric: string | null;
+  takeUpMetric?: string | null;
   defaultMetricPriorSettings: MetricPriorSettings;
   regressionAdjustmentEnabled: boolean;
   attributionModel: AttributionModel;

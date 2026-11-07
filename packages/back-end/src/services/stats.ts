@@ -12,6 +12,7 @@ import { parseEnvInt, putBaselineVariationFirst } from "shared/util";
 import {
   ExperimentMetricInterface,
   eligibleForUncappedMetric,
+  isTakeUpEligibleMetric,
   getFunnelStepMetrics,
   isBinomialMetric,
   isFactMetric,
@@ -125,6 +126,7 @@ export function getAnalysisSettingsForStatsEngine(
     one_sided_intervals: !!settings.oneSidedIntervals,
     use_covariate_as_response: !!settings.useCovariateAsResponse,
     post_stratification_enabled: !!settings.postStratificationEnabled,
+    effect_type: settings.effectType ?? "itt",
   };
 
   return analysisData;
@@ -369,6 +371,9 @@ export function getMetricSettingsForStatsEngine(
       settings,
     ),
     compute_uncapped_metric: eligibleForUncappedMetric(metric),
+    // Matches the SQL builder, which adds take-up columns to every eligible
+    // metric whenever the snapshot has a take-up metric.
+    take_up: !!settings.takeUpMetric && isTakeUpEligibleMetric(metric),
   };
 }
 

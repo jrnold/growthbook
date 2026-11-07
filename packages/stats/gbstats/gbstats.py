@@ -909,6 +909,22 @@ def base_statistic_from_metric_row(
         raise ValueError("Unexpectedly metric_type was None")
 
 
+def metric_for_analysis(
+    metric: MetricSettingsForStatsEngine,
+    analysis: AnalysisSettingsForStatsEngine,
+) -> MetricSettingsForStatsEngine:
+    if analysis.effect_type != "cace" or not metric.take_up:
+        return metric
+    # CUPED and post-stratification are not supported for IV yet, so CACE is
+    # always the unadjusted Wald estimate.
+    return dataclasses.replace(
+        metric,
+        statistic_type="iv",
+        denominator_metric_type="binomial",
+        covariate_metric_type=None,
+    )
+
+
 # Run a specific analysis given data and configuration settings
 def process_analysis(
     rows: pd.DataFrame,
@@ -1211,7 +1227,7 @@ def process_single_metric(
             dimensions = process_analysis(
                 rows=pdrows,
                 var_id_map=get_var_id_map(a.var_ids),
-                metric=metric,
+                metric=metric_for_analysis(metric, a),
                 analysis=a,
             )
             analysis_results.append(

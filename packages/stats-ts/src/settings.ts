@@ -1,10 +1,12 @@
 export type DifferenceType = "relative" | "absolute" | "scaled";
+export type EffectType = "itt" | "cace";
 export type StatsEngine = "bayesian" | "frequentist";
 export type UnadjustedStatisticType =
   | "ratio"
   | "mean"
   | "quantile_event"
-  | "quantile_unit";
+  | "quantile_unit"
+  | "iv";
 export type RegressionAdjustedStatisticType = "ratio_ra" | "mean_ra";
 export type StatisticType =
   | UnadjustedStatisticType
@@ -37,6 +39,7 @@ export type AnalysisSettingsForStatsEngineInit = {
   one_sided_intervals?: boolean;
   use_covariate_as_response?: boolean;
   post_stratification_enabled?: boolean;
+  effect_type?: EffectType;
 };
 
 export class AnalysisSettingsForStatsEngine {
@@ -59,6 +62,7 @@ export class AnalysisSettingsForStatsEngine {
   one_sided_intervals: boolean;
   use_covariate_as_response: boolean;
   post_stratification_enabled: boolean;
+  effect_type: EffectType;
 
   constructor(args: AnalysisSettingsForStatsEngineInit) {
     this.var_names = args.var_names;
@@ -81,6 +85,7 @@ export class AnalysisSettingsForStatsEngine {
     this.use_covariate_as_response = args.use_covariate_as_response ?? false;
     this.post_stratification_enabled =
       args.post_stratification_enabled ?? false;
+    this.effect_type = args.effect_type ?? "itt";
   }
 }
 
@@ -176,6 +181,7 @@ export type MetricSettingsForStatsEngineInit = {
   business_metric_type?: BusinessMetricType[] | null;
   target_mde?: number;
   compute_uncapped_metric?: boolean;
+  take_up?: boolean;
 };
 
 export class MetricSettingsForStatsEngine {
@@ -194,6 +200,7 @@ export class MetricSettingsForStatsEngine {
   business_metric_type: BusinessMetricType[] | null;
   target_mde: number;
   compute_uncapped_metric: boolean;
+  take_up: boolean;
 
   constructor(args: MetricSettingsForStatsEngineInit) {
     this.id = args.id;
@@ -211,6 +218,7 @@ export class MetricSettingsForStatsEngine {
     this.business_metric_type = args.business_metric_type ?? null;
     this.target_mde = args.target_mde ?? 0.01;
     this.compute_uncapped_metric = args.compute_uncapped_metric ?? false;
+    this.take_up = args.take_up ?? false;
   }
 }
 

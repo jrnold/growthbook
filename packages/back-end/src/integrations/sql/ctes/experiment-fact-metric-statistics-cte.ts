@@ -27,6 +27,7 @@ export function getExperimentFactMetricStatisticsCTE(
     funnelsResolvedOnSource = false,
     eventQuantileTableName,
     capValueTableName,
+    takeUpTableName,
     factTablesWithIndices,
     percentileTableIndices,
   }: {
@@ -47,6 +48,8 @@ export function getExperimentFactMetricStatisticsCTE(
     funnelsResolvedOnSource?: boolean;
     eventQuantileTableName: string;
     capValueTableName: string;
+    /** One row per user with a 0/1 `take_up` column; required for take-up metrics. */
+    takeUpTableName?: string;
     factTablesWithIndices: { factTable: FactTableInterface; index: number }[];
     percentileTableIndices: Set<number>;
   },
@@ -61,6 +64,12 @@ export function getExperimentFactMetricStatisticsCTE(
       "ImplementationError: funnel metrics require a resolved funnel table",
     );
   }
+  if (metricData.some((d) => d.takeUp) && !takeUpTableName) {
+    throw new Error(
+      "ImplementationError: take-up metrics require a take-up table",
+    );
+  }
+  const takeUpCol = "COALESCE(tu.take_up, 0)";
   return `SELECT
         m.variation AS variation
         ${dimensionCols.map((c) => `, m.${c.alias} AS ${c.alias}`).join("")}
@@ -103,6 +112,7 @@ export function getExperimentFactMetricStatisticsCTE(
             , SUM(POWER(${data.capCoalesceMetric}, 2)) AS ${
               data.alias
             }_main_sum_squares
+            ${data.takeUp ? getTakeUpColumns(data, takeUpCol) : ""}
             ${
               data.quantileMetric === "event"
                 ? `
@@ -223,6 +233,11 @@ export function getExperimentFactMetricStatisticsCTE(
       FROM
         ${sourceTableName} m
         ${
+          takeUpTableName
+            ? `LEFT JOIN ${takeUpTableName} tu ON (tu.${baseIdType} = m.${baseIdType})`
+            : ""
+        }
+        ${
           // Event quantiles never span sources (enforced by the query builder)
           eventQuantileData.length
             ? `LEFT JOIN ${eventQuantileTableName} qm ON (
@@ -258,4 +273,15 @@ export function getExperimentFactMetricStatisticsCTE(
         m.variation
         ${dimensionCols.map((c) => `, m.${c.alias}`).join("")}
     `;
+}
+
+// Ratio-shaped moments with take-up in the denominator slot, which is what
+// the gbstats `iv` statistic reads. Take-up is 0/1, so it equals its square.
+function getTakeUpColumns(data: FactMetricData, takeUpCol: string): string {
+  const columns = (metric: string, suffix: string) => `
+    , SUM(${takeUpCol}) AS ${data.alias}_denominator_sum${suffix}
+    , SUM(${takeUpCol}) AS ${data.alias}_denominator_sum_squares${suffix}
+    , SUM(${metric} * ${takeUpCol}) AS ${data.alias}_main_denominator_sum_product${suffix}
+    , SUM(POWER(${metric}, 2) * ${takeUpCol}) AS ${data.alias}_main_squared_denominator_sum_product${suffix}`;
+  return `${data.computeUncappedMetric ? columns(data.uncappedCoalesceMetric, "_uncapped") : ""}${columns(data.capCoalesceMetric, "")}`;
 }

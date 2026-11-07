@@ -275,6 +275,7 @@ export const experimentAnalysisSettings = z
     secondaryMetrics: z.array(z.string()),
     guardrailMetrics: z.array(z.string()),
     activationMetric: z.string().optional(),
+    takeUpMetric: z.string().optional(),
     metricOverrides: z.array(metricOverride).optional(),
     lookbackOverride: lookbackOverride.optional(),
     decisionFrameworkSettings: experimentDecisionFrameworkSettings,

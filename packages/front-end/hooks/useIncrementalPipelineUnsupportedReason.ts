@@ -46,6 +46,7 @@ export function useIncrementalPipelineUnsupportedReason(
           "incremental-refresh",
         ),
         activationMetric: experiment.activationMetric,
+        takeUpMetric: experiment.takeUpMetric,
         metrics,
         experimentType: experiment.type,
       }) ?? undefined

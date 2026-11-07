@@ -112,6 +112,19 @@ export const startExperimentResultQueries = async (
   const activationMetric = snapshotSettings.activationMetric
     ? (metricMap.get(snapshotSettings.activationMetric) ?? null)
     : null;
+  const takeUpMetric = snapshotSettings.takeUpMetric
+    ? (metricMap.get(snapshotSettings.takeUpMetric) ?? null)
+    : null;
+  if (snapshotSettings.takeUpMetric && !takeUpMetric) {
+    throw new UnrecoverableSnapshotError(
+      `Take-up metric ${snapshotSettings.takeUpMetric} not found.`,
+    );
+  }
+  if (takeUpMetric && snapshotSettings.banditSettings) {
+    throw new UnrecoverableSnapshotError(
+      "Take-up metrics are not supported in Bandit experiments.",
+    );
+  }
 
   // Only include metrics tied to this experiment (both goal and guardrail metrics)
   const selectedMetrics = getQueryableMetricsFromSnapshotSettings(
@@ -214,6 +227,7 @@ export const startExperimentResultQueries = async (
 
   const unitQueryParams: ExperimentUnitsQueryParams = {
     activationMetric: activationMetric,
+    takeUpMetric,
     dimensions: snapshotDimensions.length
       ? snapshotDimensions
       : dimensionsForTraffic,
@@ -315,6 +329,7 @@ export const startExperimentResultQueries = async (
 
     const queryParams: ExperimentFactMetricsQueryParams = {
       activationMetric,
+      takeUpMetric,
       dimensions: runOverallQuantileAnalysis ? [] : snapshotDimensions,
       metrics: m,
       segment: segmentObj,
@@ -364,6 +379,7 @@ export const startExperimentResultQueries = async (
         }
         const queryParams: ExperimentFactMetricsQueryParams = {
           activationMetric,
+          takeUpMetric,
           dimensions: [unitDim],
           metrics: m,
           segment: segmentObj,
@@ -715,6 +731,11 @@ export class ExperimentResultsQueryRunner extends QueryRunner<
     const activationMetric = snapshotSettings.activationMetric
       ? (metricMap.get(snapshotSettings.activationMetric) ?? null)
       : null;
+    if (snapshotSettings.takeUpMetric) {
+      throw new UnrecoverableSnapshotError(
+        "Take-up metrics are only supported for SQL data sources.",
+      );
+    }
 
     // Only include metrics tied to this experiment (both goal and guardrail metrics)
     const metricGroups = await this.context.models.metricGroups.getAll();

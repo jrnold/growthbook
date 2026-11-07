@@ -191,6 +191,14 @@ export function isAnalysisAllowed(
     return false;
   }
 
+  // CACE reads take-up columns that only exist when the snapshot queried them
+  if (
+    analysisSettings.effectType === "cace" &&
+    !snapshotSettings.takeUpMetric
+  ) {
+    return false;
+  }
+
   return true;
 }
 

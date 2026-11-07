@@ -132,6 +132,8 @@ export type FactMetricData = {
   metric: FactMetricInterface;
   metricIndex: number;
   ratioMetric: boolean;
+  // Emits ratio-shaped columns with per-user take-up as the denominator.
+  takeUp: boolean;
   funnelMetric: boolean;
   quantileMetric: "" | MetricQuantileSettings["type"];
   metricQuantileSettings: MetricQuantileSettings;
@@ -357,6 +359,7 @@ interface ExperimentBaseQueryParams {
   settings: ExperimentSnapshotSettings;
   unitsSettings: ExperimentUnitsQuerySettings;
   activationMetric: ExperimentMetricInterface | null;
+  takeUpMetric?: ExperimentMetricInterface | null;
   factTableMap: FactTableMap;
   dimensions: Dimension[];
   segment: SegmentInterface | null;
@@ -366,6 +369,7 @@ interface ExperimentBaseQueryParams {
 export interface ExperimentUnitsQueryParams {
   unitsSettings: ExperimentUnitsQuerySettings;
   activationMetric: ExperimentMetricInterface | null;
+  takeUpMetric?: ExperimentMetricInterface | null;
   factTableMap: FactTableMap;
   dimensions: Dimension[];
   segment: SegmentInterface | null;

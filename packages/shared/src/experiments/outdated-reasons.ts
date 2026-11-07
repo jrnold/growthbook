@@ -1,5 +1,6 @@
 export const EXPERIMENT_OUTDATED_REASON_LABELS = {
   activationMetric: "Activation metric changed",
+  takeUpMetric: "Take-up metric changed",
   attributionModel: "Attribution model changed",
   queryFilter: "Query filter changed",
   segment: "Segment changed",

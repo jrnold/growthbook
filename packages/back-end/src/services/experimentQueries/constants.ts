@@ -17,6 +17,12 @@ export const RATIO_METRIC_FLOAT_COLS = [
   "main_denominator_sum_product",
 ];
 
+// Ratio-shaped columns with take-up as the denominator (gbstats `iv`)
+export const TAKE_UP_FLOAT_COLS = [
+  ...RATIO_METRIC_FLOAT_COLS,
+  "main_squared_denominator_sum_product",
+];
+
 // CUPED columns
 export const BASE_METRIC_CUPED_FLOAT_COLS = [
   "covariate_sum",
@@ -38,6 +44,10 @@ export const BASE_METRIC_FLOAT_COLS_UNCAPPED = BASE_METRIC_FLOAT_COLS.map(
 );
 
 export const RATIO_METRIC_FLOAT_COLS_UNCAPPED = RATIO_METRIC_FLOAT_COLS.map(
+  (col) => col + "_uncapped",
+);
+
+export const TAKE_UP_FLOAT_COLS_UNCAPPED = TAKE_UP_FLOAT_COLS.map(
   (col) => col + "_uncapped",
 );
 
@@ -68,4 +78,6 @@ export const ALL_NON_QUANTILE_METRIC_FLOAT_COLS = [
   ...RATIO_METRIC_FLOAT_COLS_UNCAPPED,
   ...BASE_METRIC_CUPED_FLOAT_COLS_UNCAPPED,
   ...RATIO_METRIC_CUPED_FLOAT_COLS_UNCAPPED,
+  "main_squared_denominator_sum_product",
+  "main_squared_denominator_sum_product_uncapped",
 ];

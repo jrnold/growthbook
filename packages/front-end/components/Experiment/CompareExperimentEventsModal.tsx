@@ -173,6 +173,7 @@ const EXPERIMENT_SECTION_KEYS: Record<
   secondaryMetrics: "analysis",
   guardrailMetrics: "analysis",
   activationMetric: "analysis",
+  takeUpMetric: "analysis",
   metricOverrides: "analysis",
   decisionFrameworkSettings: "analysis",
   hashAttribute: "analysis",

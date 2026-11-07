@@ -113,8 +113,12 @@ export default function ExperimentResultTooltipContent({
 
   const isWon = significant && resultsStatus === "won";
   const isLost = significant && resultsStatus === "lost";
+  const weakInstrument = !!stats.realizedSettings?.weakInstrument;
   const showWarningIcon =
-    notEnoughData || suspiciousChange || resultsStatus === "draw";
+    notEnoughData ||
+    suspiciousChange ||
+    weakInstrument ||
+    resultsStatus === "draw";
 
   const getBadgeText = () => {
     if (notEnoughData) return statusLabels?.notEnoughData ?? "Not enough data";
@@ -201,6 +205,21 @@ export default function ExperimentResultTooltipContent({
     );
   };
 
+  const maybeRenderWeakInstrumentDescription = () => {
+    if (!weakInstrument) return null;
+    const firstStageF = stats.realizedSettings?.firstStageF;
+    return (
+      <Text as="div" size="1" style={{ color: "var(--color-text-mid)" }}>
+        <b>Weak instrument:</b>
+        {" take-up differs too little between variations"}
+        {firstStageF !== null && firstStageF !== undefined
+          ? ` (F = ${numberFormatter.format(firstStageF)}, below 10)`
+          : ""}
+        {". Don't act on this estimate."}
+      </Text>
+    );
+  };
+
   const renderResultContent = () => (
     <Flex direction="column" gap="1">
       <Flex align="center" justify="between" gap="1">
@@ -228,6 +247,7 @@ export default function ExperimentResultTooltipContent({
       </Flex>
       {maybeRenderDrawDescription()}
       {maybeRenderSuspiciousDescription()}
+      {maybeRenderWeakInstrumentDescription()}
     </Flex>
   );
 

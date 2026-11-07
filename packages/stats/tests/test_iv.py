@@ -7,7 +7,12 @@ from unittest import TestCase, main as unittest_main
 import numpy as np
 import pandas as pd
 
-from gbstats.gbstats import analyze_metric_df, get_metric_dfs
+from gbstats.gbstats import (
+    analyze_metric_df,
+    get_metric_dfs,
+    metric_for_analysis,
+    process_single_metric,
+)
 from gbstats.bayesian.tests import EffectBayesianABTest, EffectBayesianConfig
 from gbstats.frequentist.tests import (
     FrequentistConfig,
@@ -19,7 +24,10 @@ from gbstats.messages import (
     IV_RELATIVE_MISSING_STATISTIC_MESSAGE,
     IV_NO_TAKE_UP_DIFFERENCE_MESSAGE,
 )
-from gbstats.models.results import FrequentistVariationResponseIndividual
+from gbstats.models.results import (
+    FrequentistVariationResponse,
+    FrequentistVariationResponseIndividual,
+)
 from gbstats.models.settings import (
     AnalysisSettingsForStatsEngine,
     DifferenceType,
@@ -498,6 +506,86 @@ class TestIVFromQueryRows(TestCase):
         np.testing.assert_allclose(
             variation.expected, case["expected_relative"]["point_estimate"]
         )
+
+
+class TestTakeUpEffectType(TestCase):
+    """Option B: one snapshot, ITT and CACE analyses over the same rows."""
+
+    def rows(self, case: dict) -> List[dict]:
+        return [
+            {
+                "dimension": "All",
+                "variation": variation,
+                "users": case[f"stat_{arm}"]["n"],
+                "count": case[f"stat_{arm}"]["n"],
+                "main_sum": case[f"stat_{arm}"]["y_sum"],
+                "main_sum_squares": case[f"stat_{arm}"]["y_sum_squares"],
+                "denominator_sum": case[f"stat_{arm}"]["d_sum"],
+                "denominator_sum_squares": case[f"stat_{arm}"]["d_sum"],
+                "main_denominator_sum_product": case[f"stat_{arm}"]["y_d_sum_product"],
+                "main_squared_denominator_sum_product": case[f"stat_{arm}"][
+                    "y_squared_d_sum_product"
+                ],
+            }
+            for arm, variation in (("a", "zero"), ("b", "one"))
+        ]
+
+    def analysis(self, **kwargs) -> AnalysisSettingsForStatsEngine:
+        return AnalysisSettingsForStatsEngine(
+            var_names=["zero", "one"],
+            var_ids=["zero", "one"],
+            weights=[0.5, 0.5],
+            stats_engine="frequentist",
+            difference_type="absolute",
+            **kwargs,
+        )
+
+    def metric(self, case: dict, **kwargs) -> MetricSettingsForStatsEngine:
+        return MetricSettingsForStatsEngine(
+            id="m",
+            name="m",
+            statistic_type="mean",
+            main_metric_type=case["outcome_type"],
+            **kwargs,
+        )
+
+    def test_itt_and_cace_from_one_set_of_rows(self):
+        case = next(c for c in FIXTURES if c["name"] == "one_sided_noncompliance")
+        result = process_single_metric(
+            rows=self.rows(case),
+            metric=self.metric(case, take_up=True),
+            analyses=[self.analysis(), self.analysis(effect_type="cace")],
+        )
+        itt, cace = (a.dimensions[0].variations[1] for a in result.analyses)
+        assert isinstance(itt, FrequentistVariationResponse)
+        assert isinstance(cace, FrequentistVariationResponse)
+        a, b = case["stat_a"], case["stat_b"]
+        np.testing.assert_allclose(
+            itt.expected, b["y_sum"] / b["n"] - a["y_sum"] / a["n"]
+        )
+        np.testing.assert_allclose(cace.expected, case["expected"]["point_estimate"])
+        np.testing.assert_allclose(
+            cace.uplift.stddev, case["expected"]["standard_error"]
+        )
+
+    def test_cace_needs_take_up_columns(self):
+        case = next(c for c in FIXTURES if c["name"] == "one_sided_noncompliance")
+        cace = self.analysis(effect_type="cace")
+        without = self.metric(case)
+        self.assertIs(metric_for_analysis(without, cace), without)
+
+    def test_cace_drops_cuped(self):
+        case = next(c for c in FIXTURES if c["name"] == "one_sided_noncompliance")
+        metric = dataclasses.replace(
+            self.metric(case, take_up=True),
+            statistic_type="mean_ra",
+            covariate_metric_type="count",
+        )
+        resolved = metric_for_analysis(metric, self.analysis(effect_type="cace"))
+        self.assertEqual(resolved.statistic_type, "iv")
+        self.assertEqual(resolved.denominator_metric_type, "binomial")
+        self.assertIsNone(resolved.covariate_metric_type)
+        self.assertIs(metric_for_analysis(metric, self.analysis()), metric)
 
 
 if __name__ == "__main__":
